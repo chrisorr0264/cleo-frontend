@@ -1,0 +1,57 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>{% block title %}Cleo - A Media Management Tool{% endblock %}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css?family=Quicksand:300,400,500,700,900" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'theme/fonts/icomoon/style.css' %}">
+    <link rel="stylesheet" href="{% static 'theme/fonts/flaticon/font/flaticon.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+
+    <!-- CSS Libraries -->
+    <link rel="stylesheet" href="{% static 'theme/css/bootstrap.min.css' %}">
+    <link rel="stylesheet" href="{% static 'theme/css/magnific-popup.css' %}">
+    <link rel="stylesheet" href="{% static 'theme/css/jquery-ui.css' %}">
+    <link rel="stylesheet" href="{% static 'theme/css/owl.carousel.min.css' %}">
+    <link rel="stylesheet" href="{% static 'theme/css/owl.theme.default.min.css' %}">
+    <link rel="stylesheet" href="{% static 'theme/css/bootstrap-datepicker.css' %}">
+    <link rel="stylesheet" href="{% static 'theme/css/aos.css' %}">
+    <link rel="stylesheet" href="{% static 'theme/css/fancybox.min.css' %}">
+    <link rel="stylesheet" href="{% static 'theme/css/style.css' %}">
+</head>
+
+<body>
+    <div class="site-wrap">
+        {% if show_navbar|default:True %}
+            {% include 'navbar.html' %}
+        {% endif %}
+
+        <main class="main-content {% if not show_navbar %}full-width{% endif %}">
+            {% block content %}
+            {% endblock %}
+        </main>
+    </div> <!-- .site-wrap -->
+
+    <!-- Javascript Libraries -->
+    <script src="{% static 'theme/js/jquery-3.3.1.min.js' %}"></script>
+    <script src="{% static 'theme/js/jquery-migrate-3.0.1.min.js' %}"></script>
+    <script src="{% static 'theme/js/jquery-ui.js' %}"></script>
+    <script src="{% static 'theme/js/popper.min.js' %}"></script>
+    <script src="{% static 'theme/js/bootstrap.min.js' %}"></script>
+    <script src="{% static 'theme/js/owl.carousel.min.js' %}"></script>
+    <script src="{% static 'theme/js/jquery.stellar.min.js' %}"></script>
+    <script src="{% static 'theme/js/jquery.countdown.min.js' %}"></script>
+    <script src="{% static 'theme/js/jquery.magnific-popup.min.js' %}"></script>
+    <script src="{% static 'theme/js/bootstrap-datepicker.min.js' %}"></script>
+    <script src="{% static 'theme/js/aos.js' %}"></script>
+    <script src="{% static 'theme/js/jquery.fancybox.min.js' %}"></script>
+    <script src="{% static 'theme/js/main.js' %}"></script>
+</body>
+
+</html>

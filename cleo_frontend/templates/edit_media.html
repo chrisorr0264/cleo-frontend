@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Edit Mode - {{ media.orig_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-0">
+    <div class="row no-gutters">
+        <!-- Column 1: Image and Bottom Section -->
+        <div class="col-md-9 p-2">
+            <!-- Row 1: Image -->
+            <div id="image-container" style="position: relative;">
+                <img id="media-image" src="{{ media.full_path }}" alt="{{ media.orig_name }}" style="width: auto; height: auto;" data-media-id="{{ media.media_object_id }}">
+                
+                <!-- Loading indicator-->
+                <div id="loading-indicator" class="loading-container">
+                    <div class="loading-text">
+                        <span>P</span><span>R</span><span>O</span><span>C</span><span>E</span><span>S</span><span>S</span><span>I</span><span>N</span><span>G</span>
+                    </div>
+                </div>
+
+                <div id="edit-buttons" style="position: absolute; bottom: 10px; right: 10px;">
+                    <button onclick="window.rotateImage('{{ media.media_object_id }}', -90)" class="btn btn-secondary"><i class="fas fa-undo"></i></button>
+                    <button onclick="window.rotateImage('{{ media.media_object_id }}', 90)" class="btn btn-secondary"><i class="fas fa-redo"></i></button>
+                    <button onclick="window.saveImage()" class="btn btn-primary"><i class="fas fa-save"></i></button>
+                </div>
+            </div>
+
+            <!-- Row 2: Image Data and Map -->
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <div class="mb-2">
+                        <h4>Image Data:</h4>
+                        <p><strong>Filename:</strong><br>{{ media.new_name }}</p>
+                        <p><strong>Date Created:</strong><br>{{ media.media_create_date }}</p>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-2">
+                        <h4>Location Data:</h4>
+                        <p><strong>Latitude:</strong><br>{{ media.latitude }}</p>
+                        <p><strong>Longitude:</strong><br>{{ media.longitude }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-12">
+                <div id="map" style="height: 200px; background-color: #f0f0f0;">
+                    <p>Map will be displayed here.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Column 2: Editing Tools -->
+        <div class="col-md-3 p-2">
+            <h4>Edit Tools</h4>
+
+            <div class="text-center mb-4">
+                <button onclick="deleteImage()" class="btn btn-danger mb-4">Delete</button>
+            </div>
+
+            <div class="mb-4">
+                <h5>Add Tags</h5>
+                <div class="row">
+                    <div class="col-5">
+                        <h6>Added Tags</h6>
+                        <select id="assigned-tags" class="list-group" multiple size="10">
+                            <!-- Assigned tags will be populated here -->
+                        </select>
+                    </div>
+                    <div class="col-2 text-center d-flex flex-column justify-content-center align-items-center">
+                        <button onclick="moveAllLeft()" class="btn btn-secondary mb-2"><i class="fas fa-angle-double-left"></i></button>
+                        <button onclick="moveOneLeft()" class="btn btn-secondary mb-2"><i class="fas fa-angle-left"></i></button>
+                        <button onclick="moveOneRight()" class="btn btn-secondary mb-2"><i class="fas fa-angle-right"></i></button>
+                        <button onclick="moveAllRight()" class="btn btn-secondary mb-2"><i class="fas fa-angle-double-right"></i></button>
+                    </div>
+                    <div class="col-5">
+                        <h6>Available Tags</h6>
+                        <select id="available-tags" class="list-group" multiple size="10">
+                            <!-- Available tags will be populated here -->
+                        </select>
+                    </div>
+                </div>
+                <div class="mt-4 text-center">
+                    <button onclick="updateTags()" class="btn btn-primary mb-2">Update Tags</button>
+                    <button onclick="resetTags()" class="btn btn-secondary mb-2">Reset</button>
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <h5>Search Faces</h5>
+                <div>
+                    <h6>Assigned Faces</h6>
+                    <ul id="assigned-faces" class="list-group mb-2">
+                        {% for face in assigned_faces %}
+                            <li class="list-group-item">{{ face.face_name }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                <div class="mb-2">
+                    <button id="toggle-all-faces" class="btn btn-secondary mb-2" onclick="toggleFaceLocations('all')">Show All Faces</button>
+                    <button id="toggle-identified-faces" class="btn btn-secondary mb-2" onclick="toggleFaceLocations('identified')">Show Identified Faces</button>
+                </div>
+                <button onclick="searchFaces()" class="btn btn-warning mb-2">Search Faces</button>
+            </div>
+
+            <!-- Close Icon Button -->
+            <button id="closeButton" data-url="{% url 'media:photos' %}" class="btn btn-secondary close-button"><i class="fas fa-times"></i></button>
+        </div>
+    </div>
+</div>
+
+<form method="post" id="rotateForm">
+    {% csrf_token %}
+</form>
+{% endblock %}
