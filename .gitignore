@@ -9,9 +9,7 @@ __pycache__/
 # Django
 *.log
 local_settings.py
-db.sqlite3
-media/
-staticfiles/
+
 
 # Virtual Environments
 venv/

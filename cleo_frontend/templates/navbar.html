@@ -1,0 +1,59 @@
+<div class="site-mobile-menu">
+    <div class="site-mobile-menu-header">
+      <div class="site-mobile-menu-close mt-3">
+        <span class="icon-close2 js-menu-toggle"></span>
+      </div>
+    </div>
+    <div class="site-mobile-menu-body"></div>
+</div>
+
+<header class="header-bar d-flex d-lg-block align-items-center" data-aos="fade-left">
+    <div class="site-logo">
+      <a href="{% url 'home' %}">Shutter</a>
+    </div>
+    
+    <div class="d-inline-block d-xl-none ml-md-0 ml-auto py-3" style="position: relative; top: 3px;">
+        <a href="#" class="site-menu-toggle js-menu-toggle text-white"><span class="icon-menu h3"></span></a>
+    </div>
+
+    <div class="main-menu">
+      <ul class="js-clone-nav">
+        <li class="active"><a href="{% url 'home' %}">Home</a></li>
+        <li><a href="{% url 'photos' %}">Photos</a></li>
+        <li><a href="bio.html">Bio</a></li>
+        <li><a href="blog.html">Blog</a></li>
+        <li><a href="contact.html">Contact</a></li>
+      </ul>
+
+      <!-- Social Media Links -->
+      <ul class="social js-clone-nav">
+        <li><a href="#"><span class="icon-facebook"></span></a></li>
+        <li><a href="#"><span class="icon-twitter"></span></a></li>
+        <li><a href="#"><span class="icon-instagram"></span></a></li>
+      </ul>
+
+      <!-- Search Functionality -->
+      <div class="search-bar mt-4">
+        <h4 class="text-white">Search Photos</h4>
+        <form class="form-inline my-2 my-lg-0" method="get" action="{% url 'photo_search' %}">
+            <input class="form-control mb-2" type="date" name="from_date" placeholder="From Date">
+            <input class="form-control mb-2" type="date" name="to_date" placeholder="To Date">
+            <input class="form-control mb-2" type="text" name="filename" placeholder="Filename">
+            <select class="form-control mb-2" name="tags" multiple>
+              <option value="" disabled selected>Tags</option>
+              {% for tag in tags %}
+                <option value="{{ tag.tag_id }}">{{ tag.tag_name }}</option>
+              {% endfor %}
+            </select>
+            <select class="form-control mb-2" name="names" multiple>
+              <option value="" disabled selected>Names</option>
+              {% for name in names %}
+                <option value="{{ name.face_name }}">{{ name.face_name }}</option>
+              {% endfor %}
+            </select>
+            <button class="btn btn-outline-success my-2 my-sm-0" type="submit">Search</button>
+        </form>
+      </div>
+
+    </div>
+</header> 

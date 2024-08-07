@@ -1,198 +1,177 @@
 '''
-A face recognition utility used throughout the cleo2 project.
+A face recognition utility used throughout the cleo project.
 2024 Christopher Orr
 '''
 
 from PIL import UnidentifiedImageError
+import hashlib
 import face_recognition
 import numpy as np
 import time
-from .models import TblKnownFaces, TblIdentifiedFaces, TblTags, TblTagsToMedia
+from ..apps.media.models import TblKnownFaces, TblFaceMatches, TblFaceLocations, TblIdentities, TblTags, TblTagsToMedia
 
 
 class FaceLabeler:
     def __init__(self):
-        self.logger = get_logger(self.__class__.__name__)
+
         self.known_face_encodings = []
         self.known_face_names = []
-        self.util = Utilities()
         self._load_known_faces_from_db()
         
 
     def _load_known_faces_from_db(self):
-        function_name = 'load_known_faces_from_db'
-        self.logger.info("Loading known faces from database", extra={'class_name': self.__class__.__name__, 'function_name': function_name})
-        conn = get_connection()
-        try:
-            cursor = conn.cursor()
-            cursor.execute("SELECT name, encoding FROM tbl_known_faces")
-            rows = cursor.fetchall()
-            cursor.close()
-            for name, encoding in rows:
-                self.known_face_names.append(name)
-                self.known_face_encodings.append(np.frombuffer(encoding, dtype=np.float64))
-            self.logger.info("Loaded known faces from database", extra={'class_name': self.__class__.__name__, 'function_name': function_name})
-        except Exception as e:
-            self.logger.error(f"Error loading known faces from database: {e}", extra={'class_name': self.__class__.__name__, 'function_name': function_name})
-        finally:
-            return_connection(conn)
+        """
+        Load all known faces and their encodings from the database
+        """
+        known_faces = TblKnownFaces.objects.select_related('identity').all()
 
-    def add_known_faces(self, names_encodings):
-        function_name = 'add_known_faces'
-        self.logger.info("Adding known faces to database", extra={'class_name': self.__class__.__name__, 'function_name': function_name})
-        conn = get_connection()
-        try:
-            cursor = conn.cursor()
-            cursor.executemany(
-                "INSERT INTO tbl_known_faces (name, encoding) VALUES (%s, %s) ON CONFLICT (name) DO NOTHING",
-                [(name, encoding.tobytes()) for name, encoding in names_encodings]
-            )
-            conn.commit()
-            cursor.close()
-            for name, encoding in names_encodings:
-                self.known_face_names.append(name)
-                self.logger.debug(f"Adding {name} to tbl_known_faces.", extra={'class_name': self.__class__.__name__, 'function_name': function_name})
-                self.known_face_encodings.append(encoding)
-            self.logger.info("Added known faces to database", extra={'class_name': self.__class__.__name__, 'function_name': function_name})
-        except Exception as e:
-            self.logger.error(f"Error adding known faces to database: {e}", extra={'class_name': self.__class__.__name__, 'function_name': function_name})
-        finally:
-            return_connection(conn)
+        for known_face in known_faces:
+            name = known_face.identity.name
+            encoding = known_face.encoding
 
-    def label_faces_in_image(self, image_path, media_object_id):
-        function_name = 'label_faces_in_image'
-        self.media_object_id = media_object_id  # Store media_object_id as an instance variable
-        self.logger.info("Labelling faces in the image.", extra={'class_name': self.__class__.__name__, 'function_name': function_name})
+            self.known_face_names.append(name)
+            self.known_face_encodings.append(np.frombuffer(encoding, dtype=np.float64))
 
+    def validate_image(self, image_path):
+        """
+        Validate that the image can be opened and return the loaded image.
+        """
         try:
             image = face_recognition.load_image_file(image_path)
+            return image
         except UnidentifiedImageError as e:
-            self.logger.error(f"Failed to load image file {image_path}: {e}", extra={'class_name': self.__class__.__name__, 'function_name': function_name})
-            return []
+            print(f"Failed to load image file {image_path}: {e}")
+            return None
         except Exception as e:
-            self.logger.error(f"Unexpected error loading image file {image_path}: {e}", extra={'class_name': self.__class__.__name__, 'function_name': function_name})
-            return []
-
-        self.logger.debug(f"Getting the face locations for {image_path}", extra={'class_name': self.__class__.__name__, 'function_name': function_name})
+            print(f"Unexpected error loading image file {image_path}: {e}")
+            return None   
+        
+    def get_face_locations_and_encodings(self, image):
+        
+        """
+        Get face locations and their corresponding encodings from the image
+        """
         face_locations = face_recognition.face_locations(image)
-        self.logger.debug(f"Found {len(face_locations)} face(s) in {image_path}", extra={'class_name': self.__class__.__name__, 'function_name': function_name})
-        self.logger.debug(f"Getting the face encodings for {image_path}", extra={'class_name': self.__class__.__name__, 'function_name': function_name})
         face_encodings = face_recognition.face_encodings(image, face_locations)
+        return face_locations, face_encodings
 
-        margin = 20
-        identified_names = []
-        names_encodings_to_add = []
+    def create_unknown_identity(self, media_object_id, encoding):
+        """
+        Create a unique 'unknown' identity using a hash of the encoding
+        """
+        encoding_hash = hashlib.sha256(encoding).hexdigest()
+        unknown_name = f"unknown_{media_object_id}_{encoding_hash[:8]}"
 
-        for (top, right, bottom, left), face_encoding in zip(face_locations, face_encodings):
-            self.logger.detail(f"Processing face at location: {(top, right, bottom, left)}", extra={'class_name': self.__class__.__name__, 'function_name': function_name})
-            if self.is_invalid_face_location(media_object_id, (top, right, bottom, left)):
-                self.logger.debug(f"Skipping invalid face location: {(top, right, bottom, left)}", extra={'class_name': self.__class__.__name__, 'function_name': function_name})
-                continue
+        # Update or create TblIdentities for the unknown face
+        identity, created = TblIdentities.objects.get_or_create(name=unknown_name)
+        return identity
+    
+    def match_face_to_known(self, encoding):
+        """
+        Try to match a face encoding to known faces.  Returns the matched identity or None.
+        """
 
-            try:
-                start_time = time.time()
-                adjusted_top = max(0, top - margin)
-                adjusted_right = min(image.shape[1], right + margin)
-                adjusted_bottom = min(image.shape[0], bottom + margin)
-                adjusted_left = max(0, left - margin)
-                self.logger.detail(f"Adjusted face location to: {(adjusted_top, adjusted_right, adjusted_bottom, adjusted_left)}", extra={'class_name': self.__class__.__name__, 'function_name': function_name})
-
-                name = "Unknown"
-                if self.known_face_encodings:
-                    self.logger.debug("Comparing faces", extra={'class_name': self.__class__.__name__, 'function_name': function_name})
-                    matches = face_recognition.compare_faces(self.known_face_encodings, face_encoding)
-                    face_distances = face_recognition.face_distance(self.known_face_encodings, face_encoding)
-                    best_match_index = np.argmin(face_distances)
-                    if matches[best_match_index]:
-                        name = self.known_face_names[best_match_index]
-                        self.logger.detail(f"Match found: {name}", extra={'class_name': self.__class__.__name__, 'function_name': function_name})
-
-                if name != "Unknown":
-                    identified_names.append((top, right, bottom, left, name))
-                    self.logger.debug(f"Added tag for {name}", extra={'class_name': self.__class__.__name__, 'function_name': function_name})
-
-                end_time = time.time()
-                self.logger.detail(f"Finished processing face in {end_time - start_time} seconds", extra={'class_name': self.__class__.__name__, 'function_name': function_name})
-            except Exception as e:
-                self.logger.error(f"Error processing face: {e}", extra={'class_name': self.__class__.__name__, 'function_name': function_name})
-
-        if names_encodings_to_add:
-            self.add_known_faces(names_encodings_to_add)
-
-        self.update_identified_faces_in_db(identified_names, media_object_id)
-        return identified_names
-
-    def update_identified_faces_in_db(self, identified_faces, media_object_id):
-        function_name = 'update_identified_faces_in_db'
-        self.logger.info("Updating identified faces in database", extra={'class_name': self.__class__.__name__, 'function_name': function_name})
-        conn = get_connection()
-        try:
-            cursor = conn.cursor()
-            # Delete existing identified faces for the media object
-            cursor.execute("DELETE FROM tbl_identified_faces WHERE media_object_id = %s", (media_object_id,))
-            # Delete existing tags for the media object related to identified faces
-            cursor.execute("""
-                DELETE FROM tbl_tags_to_media 
-                WHERE media_object_id = %s 
-                AND tag_id IN (
-                    SELECT tag_id 
-                    FROM tbl_tags 
-                    WHERE tag_name IN (SELECT face_name FROM tbl_identified_faces WHERE media_object_id = %s)
-                )
-            """, (media_object_id, media_object_id))
-
-            for (_, _, _, _, name) in identified_faces:
-                if name != "Unknown":
-                    # Insert identified faces
-                    cursor.execute("""
-                        INSERT INTO tbl_identified_faces (media_object_id, face_name)
-                        VALUES (%s, %s)
-                    """, (media_object_id, name))
-                    
-                    # Get or create the tag for the identified face
-                    cursor.execute("SELECT tag_id FROM tbl_tags WHERE tag_name = %s", (name,))
-                    tag_id = cursor.fetchone()
-                    if tag_id is None:
-                        cursor.execute("""
-                            INSERT INTO tbl_tags (tag_name, tag_desc, created_by, created_IP)
-                            VALUES (%s, %s, %s, %s)
-                        """, (name, name, self.util.get_logged_in_user(), self.util.get_local_ip()))
-                        tag_id = cursor.fetchone()[0]
-                    else:
-                        tag_id = tag_id[0]
-                    
-                    # Insert the tag into the tags to media table
-                    cursor.execute("""
-                        INSERT INTO tbl_tags_to_media (media_object_id, tag_id)
-                        VALUES (%s, %s)
-                        ON CONFLICT (media_object_id, tag_id) DO NOTHING
-                    """, (media_object_id, tag_id))
-
-            conn.commit()
-            cursor.close()
-            self.logger.debug("Updated identified faces in database", extra={'class_name': self.__class__.__name__, 'function_name': function_name})
-        except Exception as e:
-            self.logger.error(f"Error updating identified faces in database: {e}", extra={'class_name': self.__class__.__name__, 'function_name': function_name})
-        finally:
-            return_connection(conn)
-
-    def is_invalid_face_location(self, media_object_id, face_location):
-        function_name = 'is_invalid_face_location'
+        matches = face_recognition.compare_faces(self.known_face_encodings, encoding)
+        if True in matches:
+            first_match_index = matches.index(True)
+            matched_name = self.known_face_names[first_match_index]
+            identity = TblIdentities.objects.get(name=matched_name)
+            return identity
+        return None
+    
+    def save_face_data(self, media_object_id, face_location, encoding, identity):
+        """
+        Save the face location, encoding, and identity to the database
+        """
         top, right, bottom, left = face_location
-        self.logger.debug(f"Checking if face location is invalid: {face_location}", extra={'class_name': self.__class__.__name__, 'function_name': function_name})
-        conn = get_connection()
+
+        #Save or update TblKnownFaces
+        known_face, created = TblKnownFaces.objects.get_or_create(
+            encoding=encoding.tobytes(),
+            identity=identity
+        )
+
+        # Save or update TblFaceLocations
+        face_location_obj, created = TblFaceLocations.objects.update_or_create(
+            media_object_id=media_object_id,
+            top=top,
+            right=right,
+            bottom=bottom,
+            left=left,
+            defaults={'encoding': encoding.tobytes(), 'is_invalid': False}
+        )
+
+        # Save or update TblFaceMatches
+        TblFaceMatches.objects.update_or_create(
+            face_location=face_location_obj,
+            known_face_id=known_face.id,
+            defaults={'face_name': identity.name, 'is_invalid': False}
+        )
+
+    def process_image(self, image_path, media_object_id):
+        """
+        Main function to process the image: validate, detect, match, and save face data
+        """
+        image = self.validate_image(image_path)
+        if image is None:
+            return
+        
+        face_locations, face_encodings = self.get_face_locations_and_encodings(image)
+
+        for i, face_location in enumerate(face_locations):
+            encoding = face_encodings[i]
+
+            # Try to match with known faces
+            identity = self.match_face_to_known(encoding)
+
+            # If no match found, create an unknown identitiy
+            if identity is None:
+                identity = self.create_unknown_identity(media_object_id, encoding)
+
+            # Save the face data to the database
+            self.save_face_data(media_object_id, face_location, encoding, identity)
+
+
+    def update_identity_for_face_location(self, face_location_id, new_name):
+        """
+        Update the identity for a specific face location with a new name.
+        Handle cases where the name already exists in the TblIdentities table.
+        """
         try:
-            cursor = conn.cursor()
-            cursor.execute(
-                "SELECT 1 FROM tbl_invalid_faces WHERE media_object_id = %s AND \"top\" = %s AND \"right\" = %s AND \"bottom\" = %s AND \"left\" = %s",
-                (media_object_id, top, right, bottom, left)
-            )
-            result = cursor.fetchone()
-            cursor.close()
-            self.logger.debug(f"Face location invalid check result: {result}", extra={'class_name': self.__class__.__name__, 'function_name': function_name})
-            return result is not None
-        except Exception as e:
-            self.logger.error(f"Error checking if face location is invalid: {e}", extra={'class_name': self.__class__.__name__, 'function_name': function_name})
-            return False
-        finally:
-            return_connection(conn)
+            # Get the current face location record
+            face_location = TblFaceLocations.objects.get(id=face_location_id)
+            old_identity = face_location.identity
+
+            # Check if the new name already exists in TblIdentities
+            new_identity, created = TblIdentities.objects.get_or_create(name=new_name)
+
+            if not created:
+                # The new name already exists, update face location and face matches to use the new identity
+                face_location.identity = new_identity
+                face_location.save()    
+
+                TblFaceMatches.objects.filter(face_location=face_location).update(
+                    face_name=new_identity.name,
+                    known_face_id=new_identity.id
+                )
+
+                # Check if the old identity (unknonw) is still in use
+                if not TblFaceLocations.objects.filter(identity=old_identity).exists():
+                    # If no records are referencing the old 'unknown' idenity, delete it
+                    old_identity.delete()
+            else:
+                # The new identity was created, update the existing records
+                face_location.identity = new_identity
+                face_location.save()
+
+                TblFaceMatches.objects.filter(face_location=face_location).update(
+                    face_name=new_identity.name,
+                    known_face_id=new_identity.id
+                )
+
+            return new_identity
+            
+        except TblFaceLocations.DoesNotExist:
+            print(f"Face location with ID {face_location_id} does not exist.", )
+            return None
+

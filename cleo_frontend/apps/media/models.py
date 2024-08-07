@@ -60,7 +60,6 @@ class TblFaceMatches(models.Model):
         db_table = 'tbl_face_matches'
         unique_together = (('face_location', 'known_face_id'),)
 
-
 class TblIdentities(models.Model):
     name = models.CharField(unique=True, max_length=255)
     created_at = models.DateTimeField(blank=True, null=True)
@@ -69,6 +68,15 @@ class TblIdentities(models.Model):
     class Meta:
         managed = False
         db_table = 'tbl_identities'
+
+class TblKnownFaces(models.Model):
+    encoding = models.BinaryField()
+    identity = models.ForeignKey(TblIdentities, models.DO_NOTHING, blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'tbl_known_faces'
+        unique_together = (('identity', 'encoding'),)
 
 
 class TblImageTensors(models.Model):
@@ -82,16 +90,6 @@ class TblImageTensors(models.Model):
     class Meta:
         managed = False
         db_table = 'tbl_image_tensors'
-
-
-class TblKnownFaces(models.Model):
-    encoding = models.BinaryField()
-    identity = models.ForeignKey(TblIdentities, models.DO_NOTHING, blank=True, null=True)
-
-    class Meta:
-        managed = False
-        db_table = 'tbl_known_faces'
-        unique_together = (('identity', 'encoding'),)
 
 
 class TblMediaMetadata(models.Model):

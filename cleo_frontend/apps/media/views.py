@@ -10,13 +10,13 @@ from PIL import Image
 import os
 import random
 import json
-from .utils.facelabeler import FaceLabeler
+from ...utils.facelabeler import FaceLabeler 
 import numpy as np
 import hashlib
 
 def generate_paths(media):
-    media.full_path = os.path.join(settings.MEDIA_URL, media.new_name)
-    media.thumbnail_path = media.full_path.replace(settings.MEDIA_URL, settings.THUMBNAIL_URL)
+    media.full_path = os.path.join(settings.IMAGE_PATH, media.new_name)
+    media.thumbnail_path = os.path.join(settings.THUMBNAIL_PATH, media.new_name)
     width, height = media.width, media.height
 
     if width and height and height != 0:
@@ -33,6 +33,22 @@ def generate_paths(media):
         media.col_class = 'col-lg-4 col-md-6'
     else:
         media.col_class = 'col-lg-3 col-md-6'
+
+def home_view(request: HttpRequest) -> HttpResponse:
+    # Randomly select one image to display as the main focus
+    media_files = TblMediaObjects.objects.using('media').filter(media_type='image')
+    main_image = random.choice(media_files)
+
+    generate_paths(main_image)
+
+    tags = TblTags.objects.all()
+    names = TblFaceMatches.objects.values('face_name').distinct()
+
+    return render(request, "index.html", {
+        'main_image': main_image,
+        'tags': tags,
+        'names': names,
+    })
 
 def photos(request: HttpRequest) -> HttpResponse:
     media_files = list(TblMediaObjects.objects.using('media').filter(media_type='image'))
@@ -64,6 +80,7 @@ def photo_search(request: HttpRequest) -> HttpResponse:
     to_date = request.GET.get('to_date')
     tags = request.GET.getlist('tags')
     names = request.GET.getlist('names')
+    filename = request.GET.get('filename')
 
     filters = Q(media_type='image')
     title_parts = []
@@ -76,6 +93,11 @@ def photo_search(request: HttpRequest) -> HttpResponse:
         title_parts.append(f"To {to_date}")
 
     media_files = TblMediaObjects.objects.using('media').filter(filters).distinct()
+
+    if filename:
+        filters &= Q(orig_name__icontains=filename)
+        media_files = media_files.filter(filters)
+        title_parts.append(f"Filename: {filename}")
 
     if tags:
         tags = [tag for tag in tags if tag]
@@ -116,6 +138,7 @@ def photo_search(request: HttpRequest) -> HttpResponse:
         'show_search': True,
         'show_navbar': True
     })
+
 
 def edit_media(request, media_id):
     media = get_object_or_404(TblMediaObjects, media_object_id=media_id)
