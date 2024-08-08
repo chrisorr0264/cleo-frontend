@@ -11,10 +11,16 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 """
 
 from pathlib import Path
+import os
+import environ
+
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+env = environ.Env()
+environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
@@ -75,12 +81,24 @@ WSGI_APPLICATION = 'cleo_frontend.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': env('DJANGO_DB_NAME'),
+        'USER': env('DJANGO_DB_USER'),
+        'PASSWORD': env('DJANGO_DB_PASSWORD'),
+        'HOST': env('DJANGO_DB_HOST'),
+        'PORT': env('DJANGO_DB_PORT'),
+    },
+    'media': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': env('MEDIA_DB_NAME'),
+        'USER': env('MEDIA_DB_USER'),
+        'PASSWORD': env('MEDIA_DB_PASSWORD'),
+        'HOST': env('MEDIA_DB_HOST'),
+        'PORT': env('MEDIA_DB_PORT'),
     }
 }
 
-
+DATABASE_ROUTERS = {'cleo_frontend.routers.WebsiteRouter'}
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
 
