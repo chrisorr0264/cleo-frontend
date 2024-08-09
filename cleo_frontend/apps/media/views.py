@@ -50,7 +50,7 @@ def home_view(request: HttpRequest) -> HttpResponse:
         'names': names,
     })
 
-def photos(request: HttpRequest) -> HttpResponse:
+def gallery(request: HttpRequest) -> HttpResponse:
     media_files = list(TblMediaObjects.objects.using('media').filter(media_type='image'))
     random.shuffle(media_files)
     media_files = media_files[:100]
@@ -62,11 +62,12 @@ def photos(request: HttpRequest) -> HttpResponse:
 
     for media in page_obj:
         generate_paths(media)
+        print(media.full_path) # Debug
 
     tags = TblTags.objects.all()
     names = TblFaceMatches.objects.values('face_name').distinct()
 
-    return render(request, "media/photos.html", {
+    return render(request, "gallery.html", {
         'page_obj': page_obj,
         'tags': tags,
         'names': names,
@@ -130,7 +131,7 @@ def photo_search(request: HttpRequest) -> HttpResponse:
     tags = TblTags.objects.all()
     names = TblFaceMatches.objects.values('face_name').distinct()
 
-    return render(request, "media/photos.html", {
+    return render(request, "photos.html", {
         'page_obj': page_obj,
         'tags': tags,
         'names': names,
@@ -146,7 +147,7 @@ def edit_media(request, media_id):
 
     face_matches = TblFaceMatches.objects.filter(face_location__media_object=media)
 
-    return render(request, 'media/edit_media.html', {
+    return render(request, 'edit_media.html', {
         'media': media,
         'face_matches': face_matches,
         'show_navbar': False,  # Hide the navbar
@@ -372,9 +373,4 @@ def update_face_validity(request):
             return JsonResponse({'success': False, 'error': str(e)})
 
     return JsonResponse({'success': False, 'error': 'Invalid request method'})
-
-def show_urls(request):
-    resolver = get_resolver()
-    urls = [str(pattern) for pattern in resolver.url_patterns]
-    return HttpResponse("<br>".join(urls))
 

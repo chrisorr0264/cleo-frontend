@@ -1,227 +1,230 @@
 .
-├── cleo_frontend
-│   ├── apps
-│   │   ├── account
-│   │   │   ├── admin.py
-│   │   │   ├── apps.py
-│   │   │   ├── __init__.py
-│   │   │   ├── migrations
-│   │   │   │   └── __init__.py
-│   │   │   ├── models.py
-│   │   │   ├── tests.py
-│   │   │   └── views.py
-│   │   ├── media
-│   │   │   ├── admin.py
-│   │   │   ├── apps.py
-│   │   │   ├── __init__.py
-│   │   │   ├── migrations
-│   │   │   │   └── __init__.py
-│   │   │   ├── models.py
-│   │   │   ├── tests.py
-│   │   │   ├── urls.py
-│   │   │   └── views.py
-│   │   └── public
-│   │       ├── admin.py
-│   │       ├── apps.py
-│   │       ├── __init__.py
-│   │       ├── migrations
-│   │       │   └── __init__.py
-│   │       ├── models.py
-│   │       ├── tests.py
-│   │       └── views.py
-│   ├── asgi.py
-│   ├── __init__.py
-│   ├── __pycache__
-│   │   ├── __init__.cpython-312.pyc
-│   │   ├── settings.cpython-312.pyc
-│   │   └── urls.cpython-312.pyc
-│   ├── routers.py
-│   ├── settings.py
-│   ├── static
-│   │   ├── bio.html
-│   │   ├── blog.html
-│   │   ├── contact.html
-│   │   ├── css
-│   │   │   ├── aos.css
-│   │   │   ├── bootstrap
-│   │   │   │   ├── bootstrap.css
-│   │   │   │   ├── bootstrap-grid.css
-│   │   │   │   └── bootstrap-reboot.css
-│   │   │   ├── bootstrap-datepicker.css
-│   │   │   ├── bootstrap.min.css
-│   │   │   ├── fancybox.min.css
-│   │   │   ├── jquery-ui.css
-│   │   │   ├── magnific-popup.css
-│   │   │   ├── mediaelementplayer.css
-│   │   │   ├── owl.carousel.min.css
-│   │   │   ├── owl.theme.default.min.css
-│   │   │   └── style.css
-│   │   ├── fonts
-│   │   │   ├── flaticon
-│   │   │   │   ├── backup.txt
-│   │   │   │   ├── font
-│   │   │   │   │   ├── flaticon.css
-│   │   │   │   │   ├── Flaticon.eot
-│   │   │   │   │   ├── flaticon.html
-│   │   │   │   │   ├── _flaticon.scss
-│   │   │   │   │   ├── Flaticon.svg
-│   │   │   │   │   ├── Flaticon.ttf
-│   │   │   │   │   ├── Flaticon.woff
-│   │   │   │   │   └── Flaticon.woff2
-│   │   │   │   └── license
-│   │   │   │       └── license.pdf
-│   │   │   └── icomoon
-│   │   │       ├── demo-files
-│   │   │       │   ├── demo.css
-│   │   │       │   └── demo.js
-│   │   │       ├── demo.html
-│   │   │       ├── fonts
-│   │   │       │   ├── icomoon.eot
-│   │   │       │   ├── icomoon.svg
-│   │   │       │   ├── icomoon.ttf
-│   │   │       │   └── icomoon.woff
-│   │   │       ├── Read Me.txt
-│   │   │       ├── selection.json
-│   │   │       └── style.css
-│   │   ├── images
-│   │   │   ├── blog_1.jpg
-│   │   │   ├── img_10.jpg
-│   │   │   ├── img_1.jpg
-│   │   │   ├── img_2.jpg
-│   │   │   ├── img_3.jpg
-│   │   │   ├── img_4.jpg
-│   │   │   ├── img_5.jpg
-│   │   │   ├── img_6.jpg
-│   │   │   ├── img_7.jpg
-│   │   │   ├── img_8.jpg
-│   │   │   ├── img_9.jpg
-│   │   │   ├── person_1.jpg
-│   │   │   ├── person_2.jpg
-│   │   │   ├── person_3.jpg
-│   │   │   ├── person_4.jpg
-│   │   │   └── person_5.jpg
-│   │   ├── index.html
-│   │   ├── js
-│   │   │   ├── aos.js
-│   │   │   ├── bootstrap-datepicker.min.js
-│   │   │   ├── bootstrap.min.js
-│   │   │   ├── jquery-3.3.1.min.js
-│   │   │   ├── jquery.countdown.min.js
-│   │   │   ├── jquery.fancybox.min.js
-│   │   │   ├── jquery.magnific-popup.min.js
-│   │   │   ├── jquery-migrate-3.0.1.min.js
-│   │   │   ├── jquery.stellar.min.js
-│   │   │   ├── jquery-ui.js
-│   │   │   ├── main.js
-│   │   │   ├── mediaelement-and-player.min.js
-│   │   │   ├── owl.carousel.min.js
-│   │   │   ├── popper.min.js
-│   │   │   ├── slick.min.js
-│   │   │   └── typed.js
-│   │   ├── photos.html
-│   │   ├── scss
-│   │   │   ├── bootstrap
-│   │   │   │   ├── _alert.scss
-│   │   │   │   ├── _badge.scss
-│   │   │   │   ├── bootstrap-grid.scss
-│   │   │   │   ├── bootstrap-reboot.scss
-│   │   │   │   ├── bootstrap.scss
-│   │   │   │   ├── _breadcrumb.scss
-│   │   │   │   ├── _button-group.scss
-│   │   │   │   ├── _buttons.scss
-│   │   │   │   ├── _card.scss
-│   │   │   │   ├── _carousel.scss
-│   │   │   │   ├── _close.scss
-│   │   │   │   ├── _code.scss
-│   │   │   │   ├── _custom-forms.scss
-│   │   │   │   ├── _dropdown.scss
-│   │   │   │   ├── _forms.scss
-│   │   │   │   ├── _functions.scss
-│   │   │   │   ├── _grid.scss
-│   │   │   │   ├── _images.scss
-│   │   │   │   ├── _input-group.scss
-│   │   │   │   ├── _jumbotron.scss
-│   │   │   │   ├── _list-group.scss
-│   │   │   │   ├── _media.scss
-│   │   │   │   ├── mixins
+├── cleo
+│   ├── cleo_frontend
+│   │   ├── apps
+│   │   │   ├── account
+│   │   │   │   ├── admin.py
+│   │   │   │   ├── apps.py
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── migrations
+│   │   │   │   │   └── __init__.py
+│   │   │   │   ├── models.py
+│   │   │   │   ├── tests.py
+│   │   │   │   └── views.py
+│   │   │   ├── media
+│   │   │   │   ├── admin.py
+│   │   │   │   ├── apps.py
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── migrations
+│   │   │   │   │   └── __init__.py
+│   │   │   │   ├── models.py
+│   │   │   │   ├── tests.py
+│   │   │   │   ├── urls.py
+│   │   │   │   └── views.py
+│   │   │   └── public
+│   │   │       ├── admin.py
+│   │   │       ├── apps.py
+│   │   │       ├── __init__.py
+│   │   │       ├── migrations
+│   │   │       │   └── __init__.py
+│   │   │       ├── models.py
+│   │   │       ├── tests.py
+│   │   │       └── views.py
+│   │   ├── asgi.py
+│   │   ├── __init__.py
+│   │   ├── __pycache__
+│   │   │   ├── __init__.cpython-312.pyc
+│   │   │   ├── settings.cpython-312.pyc
+│   │   │   └── urls.cpython-312.pyc
+│   │   ├── routers.py
+│   │   ├── settings.py
+│   │   ├── static
+│   │   │   ├── bio.html
+│   │   │   ├── blog.html
+│   │   │   ├── contact.html
+│   │   │   ├── css
+│   │   │   │   ├── aos.css
+│   │   │   │   ├── bootstrap
+│   │   │   │   │   ├── bootstrap.css
+│   │   │   │   │   ├── bootstrap-grid.css
+│   │   │   │   │   └── bootstrap-reboot.css
+│   │   │   │   ├── bootstrap-datepicker.css
+│   │   │   │   ├── bootstrap.min.css
+│   │   │   │   ├── fancybox.min.css
+│   │   │   │   ├── jquery-ui.css
+│   │   │   │   ├── magnific-popup.css
+│   │   │   │   ├── mediaelementplayer.css
+│   │   │   │   ├── owl.carousel.min.css
+│   │   │   │   ├── owl.theme.default.min.css
+│   │   │   │   └── style.css
+│   │   │   ├── fonts
+│   │   │   │   ├── flaticon
+│   │   │   │   │   ├── backup.txt
+│   │   │   │   │   ├── font
+│   │   │   │   │   │   ├── flaticon.css
+│   │   │   │   │   │   ├── Flaticon.eot
+│   │   │   │   │   │   ├── flaticon.html
+│   │   │   │   │   │   ├── _flaticon.scss
+│   │   │   │   │   │   ├── Flaticon.svg
+│   │   │   │   │   │   ├── Flaticon.ttf
+│   │   │   │   │   │   ├── Flaticon.woff
+│   │   │   │   │   │   └── Flaticon.woff2
+│   │   │   │   │   └── license
+│   │   │   │   │       └── license.pdf
+│   │   │   │   └── icomoon
+│   │   │   │       ├── demo-files
+│   │   │   │       │   ├── demo.css
+│   │   │   │       │   └── demo.js
+│   │   │   │       ├── demo.html
+│   │   │   │       ├── fonts
+│   │   │   │       │   ├── icomoon.eot
+│   │   │   │       │   ├── icomoon.svg
+│   │   │   │       │   ├── icomoon.ttf
+│   │   │   │       │   └── icomoon.woff
+│   │   │   │       ├── Read Me.txt
+│   │   │   │       ├── selection.json
+│   │   │   │       └── style.css
+│   │   │   ├── images
+│   │   │   │   ├── blog_1.jpg
+│   │   │   │   ├── img_10.jpg
+│   │   │   │   ├── img_1.jpg
+│   │   │   │   ├── img_2.jpg
+│   │   │   │   ├── img_3.jpg
+│   │   │   │   ├── img_4.jpg
+│   │   │   │   ├── img_5.jpg
+│   │   │   │   ├── img_6.jpg
+│   │   │   │   ├── img_7.jpg
+│   │   │   │   ├── img_8.jpg
+│   │   │   │   ├── img_9.jpg
+│   │   │   │   ├── person_1.jpg
+│   │   │   │   ├── person_2.jpg
+│   │   │   │   ├── person_3.jpg
+│   │   │   │   ├── person_4.jpg
+│   │   │   │   └── person_5.jpg
+│   │   │   ├── index.html
+│   │   │   ├── js
+│   │   │   │   ├── aos.js
+│   │   │   │   ├── bootstrap-datepicker.min.js
+│   │   │   │   ├── bootstrap.min.js
+│   │   │   │   ├── jquery-3.3.1.min.js
+│   │   │   │   ├── jquery.countdown.min.js
+│   │   │   │   ├── jquery.fancybox.min.js
+│   │   │   │   ├── jquery.magnific-popup.min.js
+│   │   │   │   ├── jquery-migrate-3.0.1.min.js
+│   │   │   │   ├── jquery.stellar.min.js
+│   │   │   │   ├── jquery-ui.js
+│   │   │   │   ├── main.js
+│   │   │   │   ├── mediaelement-and-player.min.js
+│   │   │   │   ├── owl.carousel.min.js
+│   │   │   │   ├── popper.min.js
+│   │   │   │   ├── slick.min.js
+│   │   │   │   └── typed.js
+│   │   │   ├── photos.html
+│   │   │   ├── scss
+│   │   │   │   ├── bootstrap
 │   │   │   │   │   ├── _alert.scss
-│   │   │   │   │   ├── _background-variant.scss
 │   │   │   │   │   ├── _badge.scss
-│   │   │   │   │   ├── _border-radius.scss
-│   │   │   │   │   ├── _box-shadow.scss
-│   │   │   │   │   ├── _breakpoints.scss
+│   │   │   │   │   ├── bootstrap-grid.scss
+│   │   │   │   │   ├── bootstrap-reboot.scss
+│   │   │   │   │   ├── bootstrap.scss
+│   │   │   │   │   ├── _breadcrumb.scss
+│   │   │   │   │   ├── _button-group.scss
 │   │   │   │   │   ├── _buttons.scss
-│   │   │   │   │   ├── _caret.scss
-│   │   │   │   │   ├── _clearfix.scss
-│   │   │   │   │   ├── _float.scss
+│   │   │   │   │   ├── _card.scss
+│   │   │   │   │   ├── _carousel.scss
+│   │   │   │   │   ├── _close.scss
+│   │   │   │   │   ├── _code.scss
+│   │   │   │   │   ├── _custom-forms.scss
+│   │   │   │   │   ├── _dropdown.scss
 │   │   │   │   │   ├── _forms.scss
-│   │   │   │   │   ├── _gradients.scss
-│   │   │   │   │   ├── _grid-framework.scss
+│   │   │   │   │   ├── _functions.scss
 │   │   │   │   │   ├── _grid.scss
-│   │   │   │   │   ├── _hover.scss
-│   │   │   │   │   ├── _image.scss
+│   │   │   │   │   ├── _images.scss
+│   │   │   │   │   ├── _input-group.scss
+│   │   │   │   │   ├── _jumbotron.scss
 │   │   │   │   │   ├── _list-group.scss
-│   │   │   │   │   ├── _lists.scss
-│   │   │   │   │   ├── _nav-divider.scss
+│   │   │   │   │   ├── _media.scss
+│   │   │   │   │   ├── mixins
+│   │   │   │   │   │   ├── _alert.scss
+│   │   │   │   │   │   ├── _background-variant.scss
+│   │   │   │   │   │   ├── _badge.scss
+│   │   │   │   │   │   ├── _border-radius.scss
+│   │   │   │   │   │   ├── _box-shadow.scss
+│   │   │   │   │   │   ├── _breakpoints.scss
+│   │   │   │   │   │   ├── _buttons.scss
+│   │   │   │   │   │   ├── _caret.scss
+│   │   │   │   │   │   ├── _clearfix.scss
+│   │   │   │   │   │   ├── _float.scss
+│   │   │   │   │   │   ├── _forms.scss
+│   │   │   │   │   │   ├── _gradients.scss
+│   │   │   │   │   │   ├── _grid-framework.scss
+│   │   │   │   │   │   ├── _grid.scss
+│   │   │   │   │   │   ├── _hover.scss
+│   │   │   │   │   │   ├── _image.scss
+│   │   │   │   │   │   ├── _list-group.scss
+│   │   │   │   │   │   ├── _lists.scss
+│   │   │   │   │   │   ├── _nav-divider.scss
+│   │   │   │   │   │   ├── _pagination.scss
+│   │   │   │   │   │   ├── _reset-text.scss
+│   │   │   │   │   │   ├── _resize.scss
+│   │   │   │   │   │   ├── _screen-reader.scss
+│   │   │   │   │   │   ├── _size.scss
+│   │   │   │   │   │   ├── _table-row.scss
+│   │   │   │   │   │   ├── _text-emphasis.scss
+│   │   │   │   │   │   ├── _text-hide.scss
+│   │   │   │   │   │   ├── _text-truncate.scss
+│   │   │   │   │   │   ├── _transition.scss
+│   │   │   │   │   │   └── _visibility.scss
+│   │   │   │   │   ├── _mixins.scss
+│   │   │   │   │   ├── _modal.scss
+│   │   │   │   │   ├── _navbar.scss
+│   │   │   │   │   ├── _nav.scss
 │   │   │   │   │   ├── _pagination.scss
-│   │   │   │   │   ├── _reset-text.scss
-│   │   │   │   │   ├── _resize.scss
-│   │   │   │   │   ├── _screen-reader.scss
-│   │   │   │   │   ├── _size.scss
-│   │   │   │   │   ├── _table-row.scss
-│   │   │   │   │   ├── _text-emphasis.scss
-│   │   │   │   │   ├── _text-hide.scss
-│   │   │   │   │   ├── _text-truncate.scss
-│   │   │   │   │   ├── _transition.scss
-│   │   │   │   │   └── _visibility.scss
-│   │   │   │   ├── _mixins.scss
-│   │   │   │   ├── _modal.scss
-│   │   │   │   ├── _navbar.scss
-│   │   │   │   ├── _nav.scss
-│   │   │   │   ├── _pagination.scss
-│   │   │   │   ├── _popover.scss
-│   │   │   │   ├── _print.scss
-│   │   │   │   ├── _progress.scss
-│   │   │   │   ├── _reboot.scss
-│   │   │   │   ├── _root.scss
-│   │   │   │   ├── _tables.scss
-│   │   │   │   ├── _tooltip.scss
-│   │   │   │   ├── _transitions.scss
-│   │   │   │   ├── _type.scss
-│   │   │   │   ├── utilities
-│   │   │   │   │   ├── _align.scss
-│   │   │   │   │   ├── _background.scss
-│   │   │   │   │   ├── _borders.scss
-│   │   │   │   │   ├── _clearfix.scss
-│   │   │   │   │   ├── _display.scss
-│   │   │   │   │   ├── _embed.scss
-│   │   │   │   │   ├── _flex.scss
-│   │   │   │   │   ├── _float.scss
-│   │   │   │   │   ├── _position.scss
-│   │   │   │   │   ├── _screenreaders.scss
-│   │   │   │   │   ├── _shadows.scss
-│   │   │   │   │   ├── _sizing.scss
-│   │   │   │   │   ├── _spacing.scss
-│   │   │   │   │   ├── _text.scss
-│   │   │   │   │   └── _visibility.scss
-│   │   │   │   ├── _utilities.scss
-│   │   │   │   └── _variables.scss
-│   │   │   ├── _site-base.scss
-│   │   │   ├── _site-blocks.scss
-│   │   │   ├── _site-navbar.scss
-│   │   │   └── style.scss
-│   │   └── single.html
-│   ├── templates
-│   │   ├── base.html
-│   │   ├── edit_media.html
-│   │   ├── gallery.html
-│   │   ├── index.html
-│   │   └── navbar.html
-│   ├── urls.py
-│   ├── utils
-│   │   └── facelabeler.py
-│   └── wsgi.py
-├── dir_structure_output.txt
-└── manage.py
+│   │   │   │   │   ├── _popover.scss
+│   │   │   │   │   ├── _print.scss
+│   │   │   │   │   ├── _progress.scss
+│   │   │   │   │   ├── _reboot.scss
+│   │   │   │   │   ├── _root.scss
+│   │   │   │   │   ├── _tables.scss
+│   │   │   │   │   ├── _tooltip.scss
+│   │   │   │   │   ├── _transitions.scss
+│   │   │   │   │   ├── _type.scss
+│   │   │   │   │   ├── utilities
+│   │   │   │   │   │   ├── _align.scss
+│   │   │   │   │   │   ├── _background.scss
+│   │   │   │   │   │   ├── _borders.scss
+│   │   │   │   │   │   ├── _clearfix.scss
+│   │   │   │   │   │   ├── _display.scss
+│   │   │   │   │   │   ├── _embed.scss
+│   │   │   │   │   │   ├── _flex.scss
+│   │   │   │   │   │   ├── _float.scss
+│   │   │   │   │   │   ├── _position.scss
+│   │   │   │   │   │   ├── _screenreaders.scss
+│   │   │   │   │   │   ├── _shadows.scss
+│   │   │   │   │   │   ├── _sizing.scss
+│   │   │   │   │   │   ├── _spacing.scss
+│   │   │   │   │   │   ├── _text.scss
+│   │   │   │   │   │   └── _visibility.scss
+│   │   │   │   │   ├── _utilities.scss
+│   │   │   │   │   └── _variables.scss
+│   │   │   │   ├── _site-base.scss
+│   │   │   │   ├── _site-blocks.scss
+│   │   │   │   ├── _site-navbar.scss
+│   │   │   │   └── style.scss
+│   │   │   └── single.html
+│   │   ├── templates
+│   │   │   ├── base.html
+│   │   │   ├── edit_media.html
+│   │   │   ├── gallery.html
+│   │   │   ├── index.html
+│   │   │   └── navbar.html
+│   │   ├── urls.py
+│   │   ├── utils
+│   │   │   └── facelabeler.py
+│   │   └── wsgi.py
+│   ├── dir_structure_output.txt
+│   └── manage.py
+└── html
+    └── index.html
 
-28 directories, 197 files
+30 directories, 198 files

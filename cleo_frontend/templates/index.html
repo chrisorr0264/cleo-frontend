@@ -18,36 +18,3 @@
   </div>
 {% endblock %}
 
-{% block navbar %}
-  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-    <a class="navbar-brand" href="#">Gallery</a>
-    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-      <span class="navbar-toggler-icon"></span>
-    </button>
-    <div class="collapse navbar-collapse" id="navbarNav">
-      <ul class="navbar-nav mr-auto">
-        <li class="nav-item">
-          <a class="nav-link" href="{% url 'photos' %}">Photos</a>
-        </li>
-        <!-- Add more nav items as needed -->
-      </ul>
-      <form class="form-inline my-2 my-lg-0" method="get" action="{% url 'photo_search' %}">
-        <input class="form-control mr-sm-2" type="date" name="from_date" placeholder="From Date">
-        <input class="form-control mr-sm-2" type="date" name="to_date" placeholder="To Date">
-        <select class="form-control mr-sm-2" name="tags" multiple>
-          <option value="" disabled selected>Tags</option>
-          {% for tag in tags %}
-            <option value="{{ tag.tag_id }}">{{ tag.tag_name }}</option>
-          {% endfor %}
-        </select>
-        <select class="form-control mr-sm-2" name="names" multiple>
-          <option value="" disabled selected>Names</option>
-          {% for name in names %}
-            <option value="{{ name.face_name }}">{{ name.face_name }}</option>
-          {% endfor %}
-        </select>
-        <button class="btn btn-outline-success my-2 my-sm-0" type="submit">Search</button>
-      </form>
-    </div>
-  </nav>
-{% endblock %}

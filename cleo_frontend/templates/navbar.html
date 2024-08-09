@@ -19,7 +19,7 @@
     <div class="main-menu">
       <ul class="js-clone-nav">
         <li class="active"><a href="{% url 'home' %}">Home</a></li>
-        <li><a href="{% url 'photos' %}">Photos</a></li>
+        <li><a href="{% url 'media:gallery' %}">Photos</a></li>
         <li><a href="bio.html">Bio</a></li>
         <li><a href="blog.html">Blog</a></li>
         <li><a href="contact.html">Contact</a></li>
@@ -35,7 +35,7 @@
       <!-- Search Functionality -->
       <div class="search-bar mt-4">
         <h4 class="text-white">Search Photos</h4>
-        <form class="form-inline my-2 my-lg-0" method="get" action="{% url 'photo_search' %}">
+        <form class="form-inline my-2 my-lg-0" method="get" action="{% url 'media:photo_search' %}">
             <input class="form-control mb-2" type="date" name="from_date" placeholder="From Date">
             <input class="form-control mb-2" type="date" name="to_date" placeholder="To Date">
             <input class="form-control mb-2" type="text" name="filename" placeholder="Filename">

@@ -42,227 +42,7 @@ function fetchTags() {
         });
 }
 
-// Update tags for the current media item
-function updateTags() {
-    const assignedTags = Array.from(document.getElementById('assigned-tags').options).map(option => option.value);
-    const mediaId = document.querySelector('img[data-media-id]').getAttribute('data-media-id');
-
-    fetch('/media/update-tags/', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-        },
-        body: JSON.stringify({
-            media_object_id: mediaId,
-            assigned_tags: assignedTags
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            alert('Tags updated successfully!');
-        } else {
-            alert('Failed to update tags.');
-        }
-    });
-}
-
-// Move all tags from available to assigned
-function moveAllLeft() {
-    const availableTags = document.getElementById('available-tags');
-    const assignedTags = document.getElementById('assigned-tags');
-    while (availableTags.options.length > 0) {
-        assignedTags.appendChild(availableTags.options[0]);
-    }
-}
-
-// Move selected tags from available to assigned
-function moveOneLeft() {
-    const availableTags = document.getElementById('available-tags');
-    const assignedTags = document.getElementById('assigned-tags');
-    const selectedOptions = Array.from(availableTags.selectedOptions);
-    selectedOptions.forEach(option => {
-        assignedTags.appendChild(option);
-    });
-}
-
-// Move all tags from assigned to available
-function moveAllRight() {
-    const availableTags = document.getElementById('available-tags');
-    const assignedTags = document.getElementById('assigned-tags');
-    while (assignedTags.options.length > 0) {
-        availableTags.appendChild(assignedTags.options[0]);
-    }
-}
-
-// Move selected tags from assigned to available
-function moveOneRight() {
-    const availableTags = document.getElementById('available-tags');
-    const assignedTags = document.getElementById('assigned-tags');
-    const selectedOptions = Array.from(assignedTags.selectedOptions);
-    selectedOptions.forEach(option => {
-        availableTags.appendChild(option);
-    });
-}
-
-// Reset tags to their original state
-function resetTags() {
-    fetchTags();
-}
-
-// Delete the current media item (placeholder function)
-function deleteImage() {
-    console.log("Delete Image");
-}
-
-// Search for faces in the current media item (placeholder function)
-function searchFaces() {
-    console.log("Search Faces");
-}
-
-// Navigate back to the previous page
-function goBack(event) {
-    event.preventDefault();
-    console.log("goBack function called");
-    const button = event.currentTarget;
-    const url = button.getAttribute('data-url');
-    console.log("URL:", url);
-    if (url) {
-        window.location.href = url;
-    } else {
-        window.history.back();
-    }
-}
-
-// Initialize Google Maps with media location
-function initMap() {
-    var map = new google.maps.Map(document.getElementById('map'), {
-        center: {lat: mediaLatitude, lng: mediaLongitude},
-        zoom: 8
-    });
-    var marker = new google.maps.Marker({
-        position: {lat: mediaLatitude, lng: mediaLongitude},
-        map: map
-    });
-}
-
-// Toggle the visibility of face locations on the image
-function toggleFaceLocations(type) {
-    const mediaId = document.querySelector('img[data-media-id]').getAttribute('data-media-id');
-    const container = document.getElementById('image-container');
-    const imageElement = document.getElementById('media-image');
-
-    const originalWidth = 1536;
-    const originalHeight = 2048;
-    const displayedWidth = imageElement.clientWidth;
-    const displayedHeight = imageElement.clientHeight;
-
-    const widthScale = displayedWidth / originalWidth;
-    const heightScale = displayedHeight / originalHeight;
-
-    // Clear existing face rectangles
-    const existingRects = document.querySelectorAll('.face-rect');
-    existingRects.forEach(rect => rect.remove());
-
-    fetch(`/media/fetch-face-locations/${mediaId}/?type=${type}`)
-        .then(response => response.json())
-        .then(data => {
-            data.face_locations.forEach(face => {
-                const rect = document.createElement('div');
-                rect.classList.add('face-rect');
-                rect.style.position = 'absolute';
-                rect.style.border = '2px solid red';
-                rect.style.left = `${face.left * widthScale}px`;
-                rect.style.top = `${face.top * heightScale}px`;
-                rect.style.width = `${(face.right - face.left) * widthScale}px`;
-                rect.style.height = `${(face.bottom - face.top) * heightScale}px`;
-                rect.style.zIndex = '10';
-                container.appendChild(rect);
-
-                // Add name label that can be edited
-                const label = document.createElement('input');
-                label.type = 'text';
-                label.value = face.name || '';
-                label.classList.add('face-name-input');
-                label.style.position = 'absolute';
-                label.style.top = `${(face.bottom * heightScale) + 5}px`;
-                label.style.left = `${face.left * widthScale}px`;
-                label.style.zIndex = '11';
-
-                container.appendChild(label);
-            });
-        })
-        .catch(error => console.error('Error', error));
-}
-
-// Update the validity of a face location
-function updateFaceValidity(mediaId, face, isInvalid) {
-    return fetch('/media/update-face-validity/', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-        },
-        body: JSON.stringify({
-            media_id: mediaId,
-            face: {
-                top: face.top,
-                right: face.right,
-                bottom: face.bottom,
-                left: face.left
-            },
-            is_invalid: isInvalid
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            console.log('Face validity updated successfully:', data);
-        } else {
-            console.error('Error updating face validity:', data.error);
-        }
-    })
-    .catch(error => console.error('There was a problem with the fetch operation:', error));
-}
-
-// Update the name of a face in the database
-function updateFaceName(mediaId, face, newName, faceEncoding) {
-    if (!mediaId || !face || !faceEncoding) {
-        console.error('Missing required parameters');
-        return Promise.reject('Missing required parameters');
-    }
-
-    const finalName = newName.trim() || `unknown_${mediaId}_${faceEncoding.join('')}`;
-
-    return fetch('/media/update-face-name/', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-        },
-        body: JSON.stringify({
-            media_id: mediaId,
-            face: {
-                top: face.top,
-                right: face.right,
-                bottom: face.bottom,
-                left: face.left
-            },
-            new_name: finalName,
-            face_encoding: Array.from(faceEncoding)
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            console.log('Face name updated successfully:', data);
-        } else {
-            console.error('Error updating face name:', data.error);
-        }
-    })
-    .catch(error => console.error('There was a problem with the fetch operation:', error));
-}
+// Other functions (updateTags, moveAllLeft, moveOneLeft, etc.) go here...
 
 // Initial actions on document ready
 jQuery(document).ready(function($) {
@@ -341,6 +121,140 @@ jQuery(document).ready(function($) {
                 }
             }
         });
+    };
+
+    var sitePlusMinus = function() {
+        $('.js-btn-minus').on('click', function(e){
+            e.preventDefault();
+            if ($(this).closest('.input-group').find('.form-control').val() != 0) {
+                $(this).closest('.input-group').find('.form-control').val(parseInt($(this).closest('.input-group').find('.form-control').val()) - 1);
+            } else {
+                $(this).closest('.input-group').find('.form-control').val(parseInt(0));
+            }
+        });
+        $('.js-btn-plus').on('click', function(e){
+            e.preventDefault();
+            $(this).closest('.input-group').find('.form-control').val(parseInt($(this).closest('.input-group').find('.form-control').val()) + 1);
+        });
+    };
+
+    var siteSliderRange = function() {
+        $( "#slider-range" ).slider({
+            range: true,
+            min: 0,
+            max: 500,
+            values: [ 75, 300 ],
+            slide: function( event, ui ) {
+                $( "#amount" ).val( "$" + ui.values[ 0 ] + " - $" + ui.values[ 1 ] );
+            }
+        });
+        $( "#amount" ).val( "$" + $( "#slider-range" ).slider( "values", 0 ) +
+            " - $" + $( "#slider-range" ).slider( "values", 1 ) );
+    };
+
+    var siteMagnificPopup = function() {
+        $('.image-popup').magnificPopup({
+            type: 'image',
+            closeOnContentClick: true,
+            closeBtnInside: false,
+            fixedContentPos: true,
+            mainClass: 'mfp-no-margins mfp-with-zoom', // class to remove default margin from left and right side
+            gallery: {
+                enabled: true,
+                navigateByImgClick: true,
+                preload: [0,1] // Will preload 0 - before current, and 1 after the current image
+            },
+            image: {
+                verticalFit: true
+            },
+            zoom: {
+                enabled: true,
+                duration: 300 // don't forget to change the duration also in CSS
+            }
+        });
+
+        $('.popup-youtube, .popup-vimeo, .popup-gmaps').magnificPopup({
+            disableOn: 700,
+            type: 'iframe',
+            mainClass: 'mfp-fade',
+            removalDelay: 160,
+            preloader: false,
+            fixedContentPos: false
+        });
+    };
+
+    var siteCarousel = function () {
+        if ($('.nonloop-block-13').length > 0) {
+            $('.nonloop-block-13').owlCarousel({
+                center: false,
+                items: 1,
+                loop: true,
+                stagePadding: 0,
+                margin: 0,
+                autoplay: true,
+                nav: true,
+                navText: ['<span class="icon-arrow_back">', '<span class="icon-arrow_forward">'],
+                responsive: {
+                    600: {
+                        margin: 0,
+                        nav: true,
+                        items: 2
+                    },
+                    1000: {
+                        margin: 0,
+                        stagePadding: 0,
+                        nav: true,
+                        items: 3
+                    },
+                    1200: {
+                        margin: 0,
+                        stagePadding: 0,
+                        nav: true,
+                        items: 4
+                    }
+                }
+            });
+        }
+
+        $('.slide-one-item').owlCarousel({
+            center: false,
+            items: 1,
+            loop: true,
+            stagePadding: 0,
+            margin: 0,
+            autoplay: true,
+            pauseOnHover: false,
+            nav: true,
+            navText: ['<span class="icon-keyboard_arrow_left">', '<span class="icon-keyboard_arrow_right">']
+        });
+    };
+
+    var siteStellar = function() {
+        $(window).stellar({
+            responsive: false,
+            parallaxBackgrounds: true,
+            parallaxElements: true,
+            horizontalScrolling: false,
+            hideDistantElements: false,
+            scrollProperty: 'scroll'
+        });
+    };
+
+    var siteCountDown = function() {
+        $('#date-countdown').countdown('2020/10/10', function(event) {
+            var $this = $(this).html(event.strftime(''
+                + '<span class="countdown-block"><span class="label">%w</span> weeks </span>'
+                + '<span class="countdown-block"><span class="label">%d</span> days </span>'
+                + '<span class="countdown-block"><span class="label">%H</span> hr </span>'
+                + '<span class="countdown-block"><span class="label">%M</span> min </span>'
+                + '<span class="countdown-block"><span class="label">%S</span> sec</span>'));
+        });
+    };
+
+    var siteDatePicker = function() {
+        if ($('.datepicker').length > 0) {
+            $('.datepicker').datepicker();
+        }
     };
 
     siteMenuClone();

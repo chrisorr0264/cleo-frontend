@@ -31,18 +31,26 @@ SECRET_KEY = 'django-insecure-!zfi%$=^j2pm3h6utxsfu_vsx-51j%3ycn&t-^0!z=apas1@^y
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    '192.168.80.208',
+     'localhost',
+      '127.0.0.1'
+    ]
 
 
 # Application definition
 
 INSTALLED_APPS = [
     'django.contrib.admin',
+    
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'cleo_frontend.apps.media',
+    'cleo_frontend.apps.public',
+    'cleo_frontend.apps.account',
 ]
 
 MIDDLEWARE = [
@@ -60,7 +68,7 @@ ROOT_URLCONF = 'cleo_frontend.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [os.path.join(BASE_DIR, 'cleo_frontend', 'templates')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -98,7 +106,7 @@ DATABASES = {
     }
 }
 
-DATABASE_ROUTERS = {'cleo_frontend.routers.WebsiteRouter'}
+DATABASE_ROUTERS = {'cleo_frontend.routers.MediaRouter'}
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
 
