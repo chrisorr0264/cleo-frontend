@@ -14,4 +14,5 @@ urlpatterns = [
     path('search-faces/<int:media_id>/', views.search_faces, name='search_faces'),
     path('update-face-name/', views.update_face_name, name='update_face_name'),
     path('update-face-validity/', views.update_face_validity, name='update_face_validity'),
+    path('manual-face-recognition/', views.manual_face_recognition, name='manual_face_recognition'),
 ]

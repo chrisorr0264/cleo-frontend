@@ -13,6 +13,7 @@ import json
 from ...utils.facelabeler import FaceLabeler 
 import numpy as np
 import hashlib
+import face_recognition
 
 def generate_paths(media):
     media.full_path = os.path.join(settings.IMAGE_PATH, media.new_name)
@@ -408,6 +409,60 @@ def update_face_validity(request):
                 # Update the face match record with the new identity
                 face_match.face_name = unknown_name
                 face_match.save()
+
+            return JsonResponse({'success': True})
+
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+
+    return JsonResponse({'success': False, 'error': 'Invalid request method'})
+
+@csrf_exempt
+def manual_face_recognition(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            print(f"Received data: {data}")
+            media_id = data.get('media_id')
+            face_location = data.get('face_coordinates')  # Use 'face_coordinates' here to match the frontend
+
+            # Debugging print statements to see exactly what is received
+            print("media_id:", media_id)
+            print("face_location:", face_location)
+
+            if not media_id or not face_location:
+                print("Missing required parameters:", media_id, face_location)
+                return JsonResponse({'success': False, 'error': 'Missing required parameters'})
+
+            # The rest of your processing logic...
+            # Retrieve the media object and load the image
+            media_object = get_object_or_404(TblMediaObjects, pk=media_id)
+            image_path = os.path.join(media_object.new_path, media_object.new_name)
+
+            face_labeler = FaceLabeler()
+            image = face_labeler.validate_image(image_path)
+            if image is None:
+                return JsonResponse({'success': False, 'error': 'Invalid image'})
+
+            # Manually specified face location
+            top = face_location['top']
+            right = face_location['right']
+            bottom = face_location['bottom']
+            left = face_location['left']
+
+            # Extract face encoding for the manually specified region
+            face_encoding = face_recognition.face_encodings(image, [(top, right, bottom, left)])[0]
+
+            # Match the face or create a new identity
+            identity = face_labeler.match_face_to_known(face_encoding)
+            if identity is None:
+                identity = face_labeler.create_unknown_identity(media_id, face_encoding)
+
+            # Save the face data
+            face_labeler.save_face_data(media_id, (top, right, bottom, left), face_encoding, identity)
+
+            # Update tags
+            face_labeler.update_tags_for_face(media_id, identity.name)
 
             return JsonResponse({'success': True})
 

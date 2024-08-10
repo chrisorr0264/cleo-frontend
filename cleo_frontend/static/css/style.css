@@ -1000,3 +1000,9 @@ h1, h2, h3, h4, h5,
 .loading-text span:nth-child(8) { animation-delay: 0.8s; }
 .loading-text span:nth-child(9) { animation-delay: 0.9s; }
 .loading-text span:nth-child(10) { animation-delay: 1.0s; }
+
+.manual-face-rect {
+  border: 2px solid blue;
+  position: absolute;
+  z-index: 1000;
+}
