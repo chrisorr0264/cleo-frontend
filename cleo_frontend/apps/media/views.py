@@ -335,16 +335,16 @@ def update_face_name(request):
             face_match.face_name = identity.name
             face_match.save()
 
+            # Update the tags based on the face name
+            face_labeler = FaceLabeler()
+            face_labeler.update_tags_for_face(media_id, new_name)
+
             return JsonResponse({'success': True})
 
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)})
 
     return JsonResponse({'success': False, 'error': 'Invalid request method'})
-
-
-
-
 
 @csrf_exempt
 def update_face_validity(request):
@@ -360,6 +360,7 @@ def update_face_validity(request):
 
             tolerance = 5
 
+            # Find the matching face location within a given tolerance
             face_match = TblFaceMatches.objects.filter(
                 face_location__media_object_id=media_id,
                 face_location__top__gte=face_location['top'] - tolerance,
@@ -375,6 +376,7 @@ def update_face_validity(request):
             if not face_match:
                 return JsonResponse({'success': False, 'error': 'Face location not found'})
 
+            # Update the face location and face match records
             face_location_obj = face_match.face_location
             face_location_obj.is_invalid = is_invalid
             face_location_obj.save()
@@ -383,13 +385,27 @@ def update_face_validity(request):
             face_match.save()
 
             if is_invalid:
-                face_encoding_bytes = face_match.known_face.encoding
+                # Retrieve the known face associated with the face match
+                known_face = TblKnownFaces.objects.get(id=face_match.known_face_id)
+
+                # Mark the known face as "unknown" and update the identity
+                face_encoding_bytes = known_face.encoding
                 encoding_hash = hashlib.sha256(face_encoding_bytes).hexdigest()
                 unknown_name = f"unknown_{media_id}_{encoding_hash[:8]}"
 
-                face_match.known_face.name = unknown_name
-                face_match.known_face.save()
+                # Create or get the "unknown" identity
+                unknown_identity, created = TblIdentities.objects.get_or_create(name=unknown_name)
 
+                # Update the known face with the new identity
+                old_identity = known_face.identity
+                known_face.identity = unknown_identity
+                known_face.save()
+
+                # If the old identity was an "unknown" and is no longer used, delete it
+                if old_identity.name.startswith('unknown_') and not TblKnownFaces.objects.filter(identity=old_identity).exists():
+                    old_identity.delete()
+
+                # Update the face match record with the new identity
                 face_match.face_name = unknown_name
                 face_match.save()
 
@@ -399,4 +415,3 @@ def update_face_validity(request):
             return JsonResponse({'success': False, 'error': str(e)})
 
     return JsonResponse({'success': False, 'error': 'Invalid request method'})
-

@@ -8,16 +8,14 @@ import hashlib
 import face_recognition
 import numpy as np
 import time
-from ..apps.media.models import TblKnownFaces, TblFaceMatches, TblFaceLocations, TblIdentities, TblTags, TblTagsToMedia
+from ..apps.media.models import TblMediaObjects, TblKnownFaces, TblFaceMatches, TblFaceLocations, TblIdentities, TblTags, TblTagsToMedia
 
 
 class FaceLabeler:
     def __init__(self):
-
         self.known_face_encodings = []
         self.known_face_names = []
         self._load_known_faces_from_db()
-        
 
     def _load_known_faces_from_db(self):
         """
@@ -44,10 +42,9 @@ class FaceLabeler:
             return None
         except Exception as e:
             print(f"Unexpected error loading image file {image_path}: {e}")
-            return None   
-        
+            return None
+
     def get_face_locations_and_encodings(self, image):
-        
         """
         Get face locations and their corresponding encodings from the image
         """
@@ -62,15 +59,13 @@ class FaceLabeler:
         encoding_hash = hashlib.sha256(encoding).hexdigest()
         unknown_name = f"unknown_{media_object_id}_{encoding_hash[:8]}"
 
-        # Update or create TblIdentities for the unknown face
         identity, created = TblIdentities.objects.get_or_create(name=unknown_name)
         return identity
-    
+
     def match_face_to_known(self, encoding):
         """
-        Try to match a face encoding to known faces.  Returns the matched identity or None.
+        Try to match a face encoding to known faces. Returns the matched identity or None.
         """
-
         matches = face_recognition.compare_faces(self.known_face_encodings, encoding)
         if True in matches:
             first_match_index = matches.index(True)
@@ -78,14 +73,15 @@ class FaceLabeler:
             identity = TblIdentities.objects.get(name=matched_name)
             return identity
         return None
-    
+
     def save_face_data(self, media_object_id, face_location, encoding, identity):
         """
-        Save the face location, encoding, and identity to the database
+        Save the face location, encoding, and identity to the database.
+        Also, manage tags associated with the face.
         """
         top, right, bottom, left = face_location
 
-        #Save or update TblKnownFaces
+        # Save or update TblKnownFaces
         known_face, created = TblKnownFaces.objects.get_or_create(
             encoding=encoding.tobytes(),
             identity=identity
@@ -108,6 +104,22 @@ class FaceLabeler:
             defaults={'face_name': identity.name, 'is_invalid': False}
         )
 
+        # Update tags based on the face name
+        self.update_tags_for_face(media_object_id, identity.name)
+
+    def update_tags_for_face(self, media_object_id, face_name):
+        """
+        Update the tags associated with an image based on the face name.
+        """
+        if face_name.lower().startswith('unknown_') or not face_name.strip():
+            return  # Do not add tags for unknown or blank names
+
+        # Find or create the tag for the face name
+        tag, created = TblTags.objects.get_or_create(tag_name=face_name)
+
+        # Add the tag to the image if not already present
+        TblTagsToMedia.objects.get_or_create(media_object_id=media_object_id, tag=tag)
+
     def process_image(self, image_path, media_object_id):
         """
         Main function to process the image: validate, detect, match, and save face data
@@ -115,7 +127,7 @@ class FaceLabeler:
         image = self.validate_image(image_path)
         if image is None:
             return
-        
+
         face_locations, face_encodings = self.get_face_locations_and_encodings(image)
 
         for i, face_location in enumerate(face_locations):
@@ -124,54 +136,9 @@ class FaceLabeler:
             # Try to match with known faces
             identity = self.match_face_to_known(encoding)
 
-            # If no match found, create an unknown identitiy
+            # If no match found, create an unknown identity
             if identity is None:
                 identity = self.create_unknown_identity(media_object_id, encoding)
 
-            # Save the face data to the database
+            # Save the face data to the database and update tags
             self.save_face_data(media_object_id, face_location, encoding, identity)
-
-
-    def update_identity_for_face_location(self, face_location_id, new_name):
-        """
-        Update the identity for a specific face location with a new name.
-        Handle cases where the name already exists in the TblIdentities table.
-        """
-        try:
-            # Get the current face location record
-            face_location = TblFaceLocations.objects.get(id=face_location_id)
-            old_identity = face_location.identity
-
-            # Check if the new name already exists in TblIdentities
-            new_identity, created = TblIdentities.objects.get_or_create(name=new_name)
-
-            if not created:
-                # The new name already exists, update face location and face matches to use the new identity
-                face_location.identity = new_identity
-                face_location.save()    
-
-                TblFaceMatches.objects.filter(face_location=face_location).update(
-                    face_name=new_identity.name,
-                    known_face_id=new_identity.id
-                )
-
-                # Check if the old identity (unknonw) is still in use
-                if not TblFaceLocations.objects.filter(identity=old_identity).exists():
-                    # If no records are referencing the old 'unknown' idenity, delete it
-                    old_identity.delete()
-            else:
-                # The new identity was created, update the existing records
-                face_location.identity = new_identity
-                face_location.save()
-
-                TblFaceMatches.objects.filter(face_location=face_location).update(
-                    face_name=new_identity.name,
-                    known_face_id=new_identity.id
-                )
-
-            return new_identity
-            
-        except TblFaceLocations.DoesNotExist:
-            print(f"Face location with ID {face_location_id} does not exist.", )
-            return None
-

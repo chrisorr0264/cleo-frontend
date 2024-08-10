@@ -306,6 +306,7 @@ function updateTags() {
                                 label.disabled = true;
                                 updateFaceName(mediaId, face, label.value, face.encoding).finally(() => {
                                     label.disabled = false;
+                                    fetchAndUpdateTags(mediaId); //Refresh tags after updating
                                 });
                             });
     
@@ -321,6 +322,10 @@ function updateTags() {
     
                         // Hide the loading indicator
                         loadingIndicator.style.display = "none";
+
+                        // Update tags after processing faces
+                        fetchAndUpdateTags(mediaId)
+
                     }, 500); // 500ms delay to ensure visibility
                 })
                 .catch(error => {
@@ -328,6 +333,33 @@ function updateTags() {
                     loadingIndicator.style.display = "none"; // Hide the loading indicator on error
                 });
         };
+    }
+
+    function fetchAndUpdateTags(mediaId) {
+        fetch(`/media/fetch-tags/${mediaId}/`)
+            .then(response => response.json())
+            .then(data => {
+                const assignedTags = document.getElementById('assigned-tags');
+                const availableTags = document.getElementById('available-tags');
+    
+                assignedTags.innerHTML = '';
+                availableTags.innerHTML = '';
+    
+                data.assigned_tags.forEach(tag => {
+                    const option = document.createElement('option');
+                    option.value = tag.id;
+                    option.textContent = tag.name;
+                    assignedTags.appendChild(option);
+                });
+    
+                data.available_tags.forEach(tag => {
+                    const option = document.createElement('option');
+                    option.value = tag.id;
+                    option.textContent = tag.name;
+                    availableTags.appendChild(option);
+                });
+            })
+            .catch(error => console.error('Error fetching tags:', error));
     }
     
     // Hide the loading indicator when the page loads
@@ -374,9 +406,7 @@ function updateTags() {
                 console.error('There was a problem with the fetch operation:', error);
             });
         }
-        
-          
-        
+         
     function updateFaceName(mediaId, face, newName, faceEncoding) {  
     
         if (!mediaId || !face || !faceEncoding) {  
@@ -414,6 +444,7 @@ function updateTags() {
         .then(data => {
             if (data.success) {
                 console.log('Face name updated successfully:', data);
+                fetchAndUpdateTags(mediaId); //Refresh tags
             } else {
                 console.error('Error updating face name:', data.error);
             }
