@@ -2,7 +2,7 @@ from django.core.paginator import Paginator
 from django.shortcuts import render, get_object_or_404
 from django.urls import get_resolver
 from django.http import JsonResponse, HttpRequest, HttpResponse
-from .models import TblMediaObjects, TblTags, TblTagsToMedia, TblFaceLocations, TblFaceMatches, TblKnownFaces
+from .models import TblMediaObjects, TblTags, TblTagsToMedia, TblFaceLocations, TblFaceMatches, TblKnownFaces, TblIdentities
 from django.conf import settings
 from django.db.models import Q
 from django.views.decorators.csrf import csrf_exempt
@@ -17,6 +17,7 @@ import hashlib
 def generate_paths(media):
     media.full_path = os.path.join(settings.IMAGE_PATH, media.new_name)
     media.thumbnail_path = os.path.join(settings.THUMBNAIL_PATH, media.new_name)
+    media.media_object_id = media.media_object_id
     width, height = media.width, media.height
 
     if width and height and height != 0:
@@ -243,21 +244,26 @@ def search_faces(request, media_id):
     image_path = os.path.join(media_object.new_path, media_object.new_name)
 
     face_labeler = FaceLabeler()
-    identified_faces = face_labeler.label_faces_in_image(image_path, media_id)
+    face_labeler.process_image(image_path, media_id)
+
+    # Fetch all face locations associated with the media_object after processing
+    face_locations = TblFaceLocations.objects.filter(media_object=media_object)
 
     response_data = {'faces': []}
-    for face in identified_faces:
+    for face_location in face_locations:
+        known_face = face_location.tblfacematches_set.first()
         response_data['faces'].append({
-            'top': face['top'],
-            'right': face['right'],
-            'bottom': face['bottom'],
-            'left': face['left'],
-            'name': face['name'],
-            'encoding': face['encoding'].tolist(),
-            'is_invalid': face['is_invalid']
+            'top': face_location.top,
+            'right': face_location.right,
+            'bottom': face_location.bottom,
+            'left': face_location.left,
+            'name': known_face.face_name if known_face else "Unknown",
+            'encoding': np.frombuffer(face_location.encoding, dtype=np.float64).tolist(),
+            'is_invalid': face_location.is_invalid
         })
 
     return JsonResponse(response_data)
+
 
 def update_face_name(request):
     if request.method == 'POST':
@@ -271,6 +277,7 @@ def update_face_name(request):
             if not (media_id and face_location and new_name and face_encoding):
                 return JsonResponse({'success': False, 'error': 'Missing required parameters'})
 
+            # Convert the face encoding to bytes if it's provided as a list
             if isinstance(face_encoding, list):
                 face_encoding_np = np.array(face_encoding, dtype=np.float64)
                 face_encoding_bytes = face_encoding_np.tobytes()
@@ -282,6 +289,7 @@ def update_face_name(request):
 
             tolerance = 5
 
+            # Find the matching face location within a given tolerance
             face_match = TblFaceMatches.objects.filter(
                 face_location__media_object_id=media_id,
                 face_location__top__gte=face_location['top'] - tolerance,
@@ -300,18 +308,32 @@ def update_face_name(request):
             if face_match.face_location.is_invalid:
                 return JsonResponse({'success': False, 'error': 'Cannot update invalid face location'})
 
+            # Determine if we are updating to a known name or staying unknown
             if not new_name or new_name.lower().startswith('unknown_'):
-                new_name = unknown_name
+                identity, created = TblIdentities.objects.get_or_create(name=unknown_name)
+            else:
+                # Try to find an existing identity for the new name
+                identity, created = TblIdentities.objects.get_or_create(name=new_name)
+                
+                # Update the known face to point to this identity
+                known_face = TblKnownFaces.objects.filter(encoding=face_encoding_bytes).first()
 
-            known_face, _ = TblKnownFaces.objects.update_or_create(
-                encoding=face_encoding_bytes,
-                defaults={'name': new_name}
-            )
+                if known_face:
+                    old_identity = known_face.identity
+                    known_face.identity = identity
+                    known_face.save()
 
-            TblFaceMatches.objects.update_or_create(
-                face_location=face_match.face_location,
-                defaults={'known_face': known_face, 'face_name': new_name}
-            )
+                    # Delete the old unknown identity if it is no longer used
+                    if old_identity.name.startswith('unknown_') and not TblKnownFaces.objects.filter(identity=old_identity).exists():
+                        old_identity.delete()
+                else:
+                    # Create a new known face if it doesn't exist
+                    known_face = TblKnownFaces.objects.create(encoding=face_encoding_bytes, identity=identity)
+
+            # Update the face match with the new identity and known face
+            face_match.known_face_id = known_face.id
+            face_match.face_name = identity.name
+            face_match.save()
 
             return JsonResponse({'success': True})
 
@@ -319,6 +341,10 @@ def update_face_name(request):
             return JsonResponse({'success': False, 'error': str(e)})
 
     return JsonResponse({'success': False, 'error': 'Invalid request method'})
+
+
+
+
 
 @csrf_exempt
 def update_face_validity(request):
