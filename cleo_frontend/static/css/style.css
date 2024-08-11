@@ -1006,3 +1006,14 @@ h1, h2, h3, h4, h5,
   position: absolute;
   z-index: 1000;
 }
+
+.tag-edit-input {
+  color: #000; /* Change the text color to black or any other visible color */
+  background-color: #fff; /* Ensure the background is white */
+}
+
+.tag-edit-input:focus {
+  color: #000; /* Text color */
+  background-color: #f0f0f0; /* Slightly different background to indicate focus */
+  border: 1px solid #ccc; /* Optional: Add a border to indicate focus */
+}

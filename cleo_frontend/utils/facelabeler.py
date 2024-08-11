@@ -125,7 +125,9 @@ class FaceLabeler:
         Main function to process the image: validate, detect, match, and save face data
         """
         image = self.validate_image(image_path)
+        print("Image validation completed. Image: ", image)
         if image is None:
+            print("Invalid image.")
             return
 
         face_locations, face_encodings = self.get_face_locations_and_encodings(image)

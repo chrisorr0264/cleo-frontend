@@ -4,6 +4,9 @@
 {% block title %}Edit Mode - {{ media.orig_name }}{% endblock %}
 
 {% block content %}
+<!-- Uniquely identify this page. -->
+<div id="edit-media-identifier" style="display: none;"></div>
+
 <div class="container-fluid p-0">
     <div class="row no-gutters">
         <!-- Column 1: Image and Bottom Section -->
@@ -83,6 +86,8 @@
                 <div class="mt-4 text-center">
                     <button onclick="updateTags()" class="btn btn-primary mb-2">Update Tags</button>
                     <button onclick="resetTags()" class="btn btn-secondary mb-2">Reset</button>
+                    <button id="manageTagsButton" class="btn but-warning mb-2">Manage Tags</button>
+
                 </div>
             </div>
 
@@ -115,6 +120,39 @@
             <button id="closeButton" data-url="{% url 'media:gallery' %}" class="btn btn-secondary close-button"><i class="fas fa-times"></i></button>
         </div>
     </div>
+    <!-- Manage Tags Modal -->
+    <div class="modal fade" id="manageTagsModal" tabindex="-1" role="dialog" aria-labelledby="manageTagsModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="manageTagsModalLabel">Manage Tags</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <!-- Form to Add/Update Tag -->
+                    <form id="tagForm">
+                        <div class="form-group">
+                            <label for="tagName">Tag Name</label>
+                            <input type="text" class="form-control" id="tagName" placeholder="Enter tag name">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Save Tag</button>
+                    </form>
+
+                    <!-- List of Existing Tags with Delete Options -->
+                    <h5 class="mt-4">Existing Tags</h5>
+                    <ul id="existingTagsList" class="list-group">
+                        <!-- Existing tags will be populated here -->
+                    </ul>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 <form method="post" id="rotateForm">

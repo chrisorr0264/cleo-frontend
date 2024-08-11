@@ -33,6 +33,7 @@
       </ul>
 
       <!-- Search Functionality -->
+      {% if show_search %}
       <div class="search-bar mt-4">
         <h4 class="text-white">Search Photos</h4>
         <form class="form-inline my-2 my-lg-0" method="get" action="{% url 'media:photo_search' %}">
@@ -54,6 +55,7 @@
             <button class="btn btn-outline-success my-2 my-sm-0" type="submit">Search</button>
         </form>
       </div>
+      {% endif %}
 
     </div>
 </header> 

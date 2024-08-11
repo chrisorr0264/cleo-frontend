@@ -6,6 +6,7 @@ from .models import TblMediaObjects, TblTags, TblTagsToMedia, TblFaceLocations, 
 from django.conf import settings
 from django.db.models import Q
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 from PIL import Image
 import os
 import random
@@ -35,22 +36,6 @@ def generate_paths(media):
         media.col_class = 'col-lg-4 col-md-6'
     else:
         media.col_class = 'col-lg-3 col-md-6'
-
-def home_view(request: HttpRequest) -> HttpResponse:
-    # Randomly select one image to display as the main focus
-    media_files = TblMediaObjects.objects.using('media').filter(media_type='image')
-    main_image = random.choice(media_files)
-
-    generate_paths(main_image)
-
-    tags = TblTags.objects.all()
-    names = TblFaceMatches.objects.values('face_name').distinct()
-
-    return render(request, "index.html", {
-        'main_image': main_image,
-        'tags': tags,
-        'names': names,
-    })
 
 def gallery(request: HttpRequest) -> HttpResponse:
     media_files = list(TblMediaObjects.objects.using('media').filter(media_type='image'))
@@ -133,7 +118,7 @@ def photo_search(request: HttpRequest) -> HttpResponse:
     tags = TblTags.objects.all()
     names = TblFaceMatches.objects.values('face_name').distinct()
 
-    return render(request, "photos.html", {
+    return render(request, "gallery.html", {
         'page_obj': page_obj,
         'tags': tags,
         'names': names,
@@ -240,30 +225,45 @@ def fetch_face_locations(request, media_id):
         'face_locations': face_locations
     })
 
+@csrf_exempt
 def search_faces(request, media_id):
-    media_object = get_object_or_404(TblMediaObjects, pk=media_id)
-    image_path = os.path.join(media_object.new_path, media_object.new_name)
+    try:
+        print("Starting search_faces view")  # Debug line
+        media_object = get_object_or_404(TblMediaObjects, pk=media_id)
+        print(f"Media object found: {media_object}")  # Debug line
+        image_path = os.path.join(media_object.new_path, media_object.new_name)
+        print(f"Image path: {image_path}")  # Debug line
 
-    face_labeler = FaceLabeler()
-    face_labeler.process_image(image_path, media_id)
+        face_labeler = FaceLabeler()
+        print("Facelabeler instance created successfully.")
 
-    # Fetch all face locations associated with the media_object after processing
-    face_locations = TblFaceLocations.objects.filter(media_object=media_object)
+        
+        face_labeler.process_image(image_path, media_id)
+        print("Processed image with face_labeler")  # Debug line
 
-    response_data = {'faces': []}
-    for face_location in face_locations:
-        known_face = face_location.tblfacematches_set.first()
-        response_data['faces'].append({
-            'top': face_location.top,
-            'right': face_location.right,
-            'bottom': face_location.bottom,
-            'left': face_location.left,
-            'name': known_face.face_name if known_face else "Unknown",
-            'encoding': np.frombuffer(face_location.encoding, dtype=np.float64).tolist(),
-            'is_invalid': face_location.is_invalid
-        })
+        # Fetch all face locations associated with the media_object after processing
+        face_locations = TblFaceLocations.objects.filter(media_object=media_object)
+        print(f"Found {face_locations.count()} face locations")  # Debug line
 
-    return JsonResponse(response_data)
+        response_data = {'faces': []}
+        for face_location in face_locations:
+            known_face = face_location.tblfacematches_set.first()
+            response_data['faces'].append({
+                'top': face_location.top,
+                'right': face_location.right,
+                'bottom': face_location.bottom,
+                'left': face_location.left,
+                'name': known_face.face_name if known_face else "Unknown",
+                'encoding': np.frombuffer(face_location.encoding, dtype=np.float64).tolist(),
+                'is_invalid': face_location.is_invalid
+            })
+        print("Returning JSON response")  # Debug line
+        return JsonResponse(response_data)
+
+    except Exception as e:
+        print(f"Error processing faces: {str(e)}")  # Debug line
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
 
 
 def update_face_name(request):
@@ -424,20 +424,20 @@ def manual_face_recognition(request):
             data = json.loads(request.body)
             print(f"Received data: {data}")
             media_id = data.get('media_id')
-            face_location = data.get('face_coordinates')  # Use 'face_coordinates' here to match the frontend
+            face_locations = data.get('face_locations')  # Use 'face_coordinates' here to match the frontend
 
             # Debugging print statements to see exactly what is received
             print("media_id:", media_id)
-            print("face_location:", face_location)
+            print("face_location:", face_locations)
 
-            if not media_id or not face_location:
-                print("Missing required parameters:", media_id, face_location)
+            if not media_id or not face_locations:
+                print("Missing required parameters:", media_id, face_locations)
                 return JsonResponse({'success': False, 'error': 'Missing required parameters'})
 
             # The rest of your processing logic...
             # Retrieve the media object and load the image
             media_object = get_object_or_404(TblMediaObjects, pk=media_id)
-            image_path = os.path.join(media_object.new_path, media_object.new_name)
+            image_path = os.path.join(settings.IMAGE_PATH, media_object.new_name)
 
             face_labeler = FaceLabeler()
             image = face_labeler.validate_image(image_path)
@@ -445,10 +445,10 @@ def manual_face_recognition(request):
                 return JsonResponse({'success': False, 'error': 'Invalid image'})
 
             # Manually specified face location
-            top = face_location['top']
-            right = face_location['right']
-            bottom = face_location['bottom']
-            left = face_location['left']
+            top = face_locations['top']
+            right = face_locations['right']
+            bottom = face_locations['bottom']
+            left = face_locations['left']
 
             # Extract face encoding for the manually specified region
             face_encoding = face_recognition.face_encodings(image, [(top, right, bottom, left)])[0]
@@ -470,3 +470,42 @@ def manual_face_recognition(request):
             return JsonResponse({'success': False, 'error': str(e)})
 
     return JsonResponse({'success': False, 'error': 'Invalid request method'})
+
+def get_tags(request):
+    tags = TblTags.objects.all().values('tag_id', 'tag_name')
+    return JsonResponse({'tags': list(tags)})
+
+@csrf_exempt
+@require_POST
+def manage_tag(request):
+    tag_id = request.POST.get('tag_id')  # Capture the tag_id from the request
+    new_tag_name = request.POST.get('name')
+
+    print(f"Received tag_id: {tag_id}, new_tag_name: {new_tag_name}")
+
+    if tag_id:
+        # Attempt to update the existing tag by its ID
+        try:
+            tag = TblTags.objects.get(tag_id=tag_id)
+            tag.tag_name = new_tag_name  # Update the tag name
+            tag.save()
+            return JsonResponse({'status': 'success', 'message': 'Tag updated'})
+        except TblTags.DoesNotExist:
+            return JsonResponse({'status': 'error', 'message': 'Tag not found'}, status=404)
+    else:
+        # Create a new tag if no tag ID is provided (this case should normally not happen with your current frontend logic)
+        tag, created = TblTags.objects.get_or_create(tag_name=new_tag_name, defaults={'tag_desc': ''})
+        if created:
+            return JsonResponse({'status': 'success', 'message': 'Tag created', 'tag_id': tag.tag_id})
+        else:
+            return JsonResponse({'status': 'success', 'message': 'Tag already exists'})
+
+@csrf_exempt
+@require_POST
+def delete_tag(request, tag_id):
+    tag = get_object_or_404(TblTags, tag_id=tag_id)
+    # Remove references in tbl_tags_to_media
+    TblTagsToMedia.objects.filter(tag=tag).delete()
+    # Delete the tag
+    tag.delete()
+    return JsonResponse({'status': 'success'})

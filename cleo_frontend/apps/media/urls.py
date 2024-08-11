@@ -15,4 +15,7 @@ urlpatterns = [
     path('update-face-name/', views.update_face_name, name='update_face_name'),
     path('update-face-validity/', views.update_face_validity, name='update_face_validity'),
     path('manual-face-recognition/', views.manual_face_recognition, name='manual_face_recognition'),
+    path('get_tags/', views.get_tags, name='get_tags'),
+    path('manage_tag/', views.manage_tag, name='manage_tag'),
+    path('delete_tag/<int:tag_id>/', views.delete_tag, name='delete_tag'),
 ]
