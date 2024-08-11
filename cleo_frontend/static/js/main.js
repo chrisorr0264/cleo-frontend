@@ -509,71 +509,70 @@ function triggerManualFaceRecognition() {
 }
 
 let drawnFaces = [];
+let startX, startY, rect;
+
+function startDrawing(e) {
+    const imageContainer = document.getElementById('image-container');
+    const rectBounds = imageContainer.getBoundingClientRect();
+    startX = e.clientX - rectBounds.left;
+    startY = e.clientY - rectBounds.top;
+
+    rect = document.createElement('div');
+    rect.className = 'manual-face-rect';
+    rect.style.position = 'absolute';
+    rect.style.border = '2px solid blue';
+    rect.style.left = `${startX}px`;
+    rect.style.top = `${startY}px`;
+    rect.style.zIndex = '1000';
+
+    imageContainer.appendChild(rect);
+}
+
+function drawRectangle(e) {
+    if (!rect) return;
+
+    const imageContainer = document.getElementById('image-container');
+    const rectBounds = imageContainer.getBoundingClientRect();
+    const mouseX = e.clientX - rectBounds.left;
+    const mouseY = e.clientY - rectBounds.top;
+
+    const width = Math.abs(mouseX - startX);
+    const height = Math.abs(mouseY - startY);
+
+    rect.style.width = `${width}px`;
+    rect.style.height = `${height}px`;
+
+    if (mouseX < startX) {
+        rect.style.left = `${mouseX}px`;
+    }
+    if (mouseY < startY) {
+        rect.style.top = `${mouseY}px`;
+    }
+}
+
+function finishDrawing() {
+    if (!rect) return;
+
+    const imageContainer = document.getElementById('image-container');
+    const rectBounds = rect.getBoundingClientRect();
+    const containerBounds = imageContainer.getBoundingClientRect();
+
+    const left = rectBounds.left - containerBounds.left;
+    const top = rectBounds.top - containerBounds.top;
+    const right = left + rectBounds.width;
+    const bottom = top + rectBounds.height;
+
+    // Store the drawn rectangle for later processing
+    drawnFaces.push({ left, top, right, bottom });
+
+    rect = null; // Clear the current rectangle
+}
 
 function enableManualDrawing() {
     const imageContainer = document.getElementById('image-container');
-    let startX, startY, rect;
-
     imageContainer.addEventListener('mousedown', startDrawing);
     imageContainer.addEventListener('mousemove', drawRectangle);
     imageContainer.addEventListener('mouseup', finishDrawing);
-
-    function startDrawing(e) {
-        const rectBounds = imageContainer.getBoundingClientRect();
-        startX = e.clientX - rectBounds.left;
-        startY = e.clientY - rectBounds.top;
-
-        rect = document.createElement('div');
-        rect.className = 'manual-face-rect';
-        rect.style.position = 'absolute';
-        rect.style.border = '2px solid blue';
-        rect.style.left = `${startX}px`;
-        rect.style.top = `${startY}px`;
-        rect.style.zIndex = '1000';
-
-        imageContainer.appendChild(rect);
-    }
-
-    function drawRectangle(e) {
-        if (!rect) return;
-
-        const rectBounds = imageContainer.getBoundingClientRect();
-        const mouseX = e.clientX - rectBounds.left;
-        const mouseY = e.clientY - rectBounds.top;
-
-        const width = Math.abs(mouseX - startX);
-        const height = Math.abs(mouseY - startY);
-
-        rect.style.width = `${width}px`;
-        rect.style.height = `${height}px`;
-
-        if (mouseX < startX) {
-            rect.style.left = `${mouseX}px`;
-        }
-        if (mouseY < startY) {
-            rect.style.top = `${mouseY}px`;
-        }
-    }
-
-    function finishDrawing(e) {
-        if (!rect) return;
-
-        const rectBounds = rect.getBoundingClientRect();
-        const containerBounds = imageContainer.getBoundingClientRect();
-
-        const left = rectBounds.left - containerBounds.left;
-        const top = rectBounds.top - containerBounds.top;
-        const right = left + rectBounds.width;
-        const bottom = top + rectBounds.height;
-
-        // Store the drawn rectangle for later processing
-        drawnFaces.push({ left, top, right, bottom });
-
-        // Cleanup for the next rectangle
-        imageContainer.removeEventListener('mousedown', startDrawing);
-        imageContainer.removeEventListener('mousemove', drawRectangle);
-        imageContainer.removeEventListener('mouseup', finishDrawing);
-    }
 }
 
 function disableDrawing() {
@@ -599,7 +598,7 @@ function processManualFaces() {
     // Clear the drawn faces array after processing
     drawnFaces = [];
 
-        // Disable drawing and remove drawn boxes
+    // Disable drawing and remove drawn boxes
     disableDrawing();
     removeDrawnBoxes();
 
@@ -626,7 +625,7 @@ function sendManualFaceData(faceCoordinates, mediaId) {
 
     console.log("Sending the following data:", {
         media_id: mediaId,
-        face_locations: scaledCoordinates  // Send scaled coordinates to match the original image size
+        face_locations: scaledCoordinates // Send scaled coordinates to match the original image size
     });
 
     fetch(`/media/manual-face-recognition/`, {
@@ -637,16 +636,13 @@ function sendManualFaceData(faceCoordinates, mediaId) {
         },
         body: JSON.stringify({
             media_id: mediaId,
-            face_locations: scaledCoordinates,  // Send scaled coordinates
+            face_locations: scaledCoordinates, // Send scaled coordinates
         }),
     })
     .then(response => response.json())
-
     .then(data => {
         if (data.success) {
             console.log("Manual face recognition processed successfully:", data);
-            // Trigger the searchFaces function after successful processing
-
         } else {
             console.error('Error processing manual face recognition:', data.error);
         }
