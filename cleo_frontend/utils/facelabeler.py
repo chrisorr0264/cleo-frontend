@@ -120,9 +120,10 @@ class FaceLabeler:
         # Add the tag to the image if not already present
         TblTagsToMedia.objects.get_or_create(media_object_id=media_object_id, tag=tag)
 
-    def process_image(self, image_path, media_object_id):
+    def process_image(self, image_path, media_object_id, manual_face_locations=None):
         """
-        Main function to process the image: validate, detect, match, and save face data
+        Main function to process the image: validate, detect, match, and save face data.
+        Can optionally process manually provided face locations.
         """
         image = self.validate_image(image_path)
         print("Image validation completed. Image: ", image)
@@ -130,7 +131,13 @@ class FaceLabeler:
             print("Invalid image.")
             return
 
-        face_locations, face_encodings = self.get_face_locations_and_encodings(image)
+        if manual_face_locations:
+            # If manual locations are provided, use them instead of detecting automatically
+            face_locations = manual_face_locations
+            face_encodings = face_recognition.face_encodings(image, face_locations)
+        else:
+            # Automatically detect face locations and encodings
+            face_locations, face_encodings = self.get_face_locations_and_encodings(image)
 
         for i, face_location in enumerate(face_locations):
             encoding = face_encodings[i]
@@ -144,3 +151,4 @@ class FaceLabeler:
 
             # Save the face data to the database and update tags
             self.save_face_data(media_object_id, face_location, encoding, identity)
+

@@ -121,14 +121,6 @@ function deleteImage() {
     console.log("Delete Image");
 }
     
-function addTags() {
-    console.log("Add Tags");
-}
-
-function searchFaces() {
-    console.log("Search Faces");
-}
-
 function goBack(event) {
 
     event.preventDefault();
