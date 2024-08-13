@@ -7,6 +7,7 @@ from django.conf import settings
 from django.db.models import Q
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
+from django.contrib.auth.decorators import login_required
 from PIL import Image
 import os
 import random
@@ -15,6 +16,7 @@ from ...utils.facelabeler import FaceLabeler
 import numpy as np
 import hashlib
 import face_recognition
+import shutil
 
 def generate_paths(media):
     media.full_path = os.path.join(settings.IMAGE_PATH, media.new_name)
@@ -37,6 +39,7 @@ def generate_paths(media):
     else:
         media.col_class = 'col-lg-3 col-md-6'
 
+@login_required
 def gallery(request: HttpRequest) -> HttpResponse:
     media_files = list(TblMediaObjects.objects.using('media').filter(media_type='image'))
     random.shuffle(media_files)
@@ -69,9 +72,14 @@ def photo_search(request: HttpRequest) -> HttpResponse:
     tags = request.GET.getlist('tags')
     names = request.GET.getlist('names')
     filename = request.GET.get('filename')
+    media_object_id = request.GET.get('media_object_id')  # Add media_object_id to the search parameters
 
     filters = Q(media_type='image')
     title_parts = []
+
+    if media_object_id:
+        filters &= Q(media_object_id=media_object_id)
+        title_parts.append(f"Media ID: {media_object_id}")
 
     if from_date:
         filters &= Q(media_create_date__gte=from_date)
@@ -116,7 +124,7 @@ def photo_search(request: HttpRequest) -> HttpResponse:
         title += " - " + " | ".join(title_parts)
 
     tags = TblTags.objects.all()
-    names = TblFaceMatches.objects.values('face_name').distinct()
+    names = TblFaceMatches.objects.exclude(face_name__startswith='unknown_').values('face_name').distinct()
 
     return render(request, "gallery.html", {
         'page_obj': page_obj,
@@ -128,6 +136,7 @@ def photo_search(request: HttpRequest) -> HttpResponse:
     })
 
 
+@login_required
 def edit_media(request, media_id):
     media = get_object_or_404(TblMediaObjects, media_object_id=media_id)
     generate_paths(media)
@@ -143,8 +152,8 @@ def edit_media(request, media_id):
 def save_rotation(request, media_id):
     if request.method == 'POST':
         media = get_object_or_404(TblMediaObjects, media_object_id=media_id)
-        image_path = os.path.join(settings.MEDIA_ROOT, media.new_name)
-        thumbnail_path = os.path.join(settings.MEDIA_ROOT, 'thumbnails', media.new_name)
+        image_path = os.path.join(settings.IMAGE_PATH, media.new_name)
+        thumbnail_path = os.path.join(settings.THUMBNAIL_PATH, media.new_name)
 
         try:
             angle = int(request.POST.get('angle', 0))
@@ -198,7 +207,7 @@ def fetch_face_locations(request, media_id):
 
     face_locations = []
     if face_type == 'identified':
-        identified_faces = TblFaceMatches.objects.filter(face_location__media_object=media_object, is_invalid=False)
+        identified_faces = TblFaceMatches.objects.filter(face_location__media_object=media_object, is_invalid=False).exclude(face_name__startswith='unknown_')
         for face in identified_faces:
             face_location = face.face_location
             face_locations.append({
@@ -206,24 +215,32 @@ def fetch_face_locations(request, media_id):
                 'right': face_location.right,
                 'bottom': face_location.bottom,
                 'left': face_location.left,
-                'name': face.face_name
+                'name': face.face_name,
+                'is_invalid': face_location.is_invalid  # Include is_invalid flag
             })
-    else:
+    else:  # 'all' case
         all_faces = TblFaceLocations.objects.filter(media_object=media_object)
         for face_location in all_faces:
-            face_name = 'Invalid' if face_location.is_invalid else None
+            face_name = None
+            if face_location.is_invalid:
+                face_name = 'Invalid'
+            elif face_location.tblfacematches_set.exists():
+                face_match = face_location.tblfacematches_set.first()
+                face_name = face_match.face_name
             face_locations.append({
                 'top': face_location.top,
                 'right': face_location.right,
                 'bottom': face_location.bottom,
                 'left': face_location.left,
-                'name': face_name
+                'name': face_name or '',  # If face_name is None, set to empty string
+                'is_invalid': face_location.is_invalid  # Include is_invalid flag
             })
 
     return JsonResponse({
         'status': 'success',
         'face_locations': face_locations
     })
+
 
 @csrf_exempt
 def search_faces(request, media_id):
@@ -265,17 +282,16 @@ def search_faces(request, media_id):
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
 
-
 def update_face_name(request):
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
             media_id = data.get('media_id')
             face_location = data.get('face')
-            new_name = data.get('new_name')
+            new_name = data.get('new_name').strip()  # Strip whitespace to ensure proper handling
             face_encoding = data.get('face_encoding')
 
-            if not (media_id and face_location and new_name and face_encoding):
+            if not (media_id and face_location and face_encoding):
                 return JsonResponse({'success': False, 'error': 'Missing required parameters'})
 
             # Convert the face encoding to bytes if it's provided as a list
@@ -309,36 +325,42 @@ def update_face_name(request):
             if face_match.face_location.is_invalid:
                 return JsonResponse({'success': False, 'error': 'Cannot update invalid face location'})
 
-            # Determine if we are updating to a known name or staying unknown
+            # Store old identity for cleanup after update
+            old_identity = face_match.known_face_id and TblKnownFaces.objects.get(id=face_match.known_face_id).identity
+
+            # Handle cases where the new name is empty or set to unknown
             if not new_name or new_name.lower().startswith('unknown_'):
-                identity, created = TblIdentities.objects.get_or_create(name=unknown_name)
+                identity, _ = TblIdentities.objects.get_or_create(name=unknown_name)
+
+                # Remove the old tag associated with the previous name
+                if old_identity and not old_identity.name.lower().startswith('unknown_'):
+                    old_tag = TblTags.objects.filter(tag_name=old_identity.name).first()
+                    if old_tag:
+                        TblTagsToMedia.objects.filter(media_object_id=media_id, tag=old_tag).delete()
             else:
-                # Try to find an existing identity for the new name
-                identity, created = TblIdentities.objects.get_or_create(name=new_name)
-                
-                # Update the known face to point to this identity
-                known_face = TblKnownFaces.objects.filter(encoding=face_encoding_bytes).first()
+                # Ensure that the identity is created if it does not exist
+                identity, _ = TblIdentities.objects.get_or_create(name=new_name)
 
-                if known_face:
-                    old_identity = known_face.identity
-                    known_face.identity = identity
-                    known_face.save()
+            # Update or create the known face to point to the new identity
+            known_face, _ = TblKnownFaces.objects.update_or_create(
+                encoding=face_encoding_bytes,
+                defaults={'identity': identity}
+            )
 
-                    # Delete the old unknown identity if it is no longer used
-                    if old_identity.name.startswith('unknown_') and not TblKnownFaces.objects.filter(identity=old_identity).exists():
-                        old_identity.delete()
-                else:
-                    # Create a new known face if it doesn't exist
-                    known_face = TblKnownFaces.objects.create(encoding=face_encoding_bytes, identity=identity)
-
-            # Update the face match with the new identity and known face
+            # Explicitly update the face match with the new identity and known face ID
             face_match.known_face_id = known_face.id
             face_match.face_name = identity.name
             face_match.save()
 
-            # Update the tags based on the face name
-            face_labeler = FaceLabeler()
-            face_labeler.update_tags_for_face(media_id, new_name)
+            # Update the tags based on the face name, but only if the name is not unknown
+            if new_name and not new_name.lower().startswith('unknown_'):
+                face_labeler = FaceLabeler()
+                face_labeler.update_tags_for_face(media_id, new_name)
+
+            # Clean up the old identity if it was unknown and is no longer used
+            if old_identity and old_identity.name.startswith('unknown_'):
+                if not TblKnownFaces.objects.filter(identity=old_identity).exists():
+                    old_identity.delete()
 
             return JsonResponse({'success': True})
 
@@ -346,6 +368,7 @@ def update_face_name(request):
             return JsonResponse({'success': False, 'error': str(e)})
 
     return JsonResponse({'success': False, 'error': 'Invalid request method'})
+
 
 @csrf_exempt
 def update_face_validity(request):
@@ -492,3 +515,32 @@ def delete_tag(request, tag_id):
     # Delete the tag
     tag.delete()
     return JsonResponse({'status': 'success'})
+
+def delete_image(request, media_id):
+    if request.method == 'POST':
+        try:
+            # Retrieve the media object
+            media_object = get_object_or_404(TblMediaObjects, pk=media_id)
+
+            # Mark the image as no longer active
+            media_object.is_active = False
+            media_object.save()
+
+            # Move the image to the deleted folder
+            image_path = os.path.join(settings.IMAGE_PATH, media_object.new_name)
+            deleted_path = os.path.join(settings.DELETED_PATH, media_object.new_name)
+
+            if os.path.exists(image_path):
+                shutil.move(image_path, deleted_path)
+
+            # Delete the thumbnail
+            thumbnail_path = os.path.join(settings.THUMBNAIL_PATH, media_object.new_name)
+            if os.path.exists(thumbnail_path):
+                os.remove(thumbnail_path)
+
+            return JsonResponse({'success': True, 'message': 'Image deleted successfully'})
+
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+
+    return JsonResponse({'success': False, 'error': 'Invalid request method'})

@@ -115,11 +115,43 @@ function resetTags() {
     fetchTags();
 }
     
-      
+document.addEventListener('DOMContentLoaded', function() {
+    // Check if the hidden identifier is present on the page
+    const editMediaIdentifier = document.getElementById('edit-media-identifier');
     
-function deleteImage() {
-    console.log("Delete Image");
-}
+    if (editMediaIdentifier) {
+        const deleteButton = document.getElementById('delete-button');
+        
+        if (deleteButton) {
+            deleteButton.addEventListener('click', function() {
+                const mediaId = this.getAttribute('data-media-id');
+
+                if (confirm('Are you sure you want to delete this image?')) {
+                    fetch(`/media/delete_image/${mediaId}/`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                        },
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert('Image deleted successfully');
+                            window.location.href = '/media/gallery/';  // Redirect to gallery after deletion
+                        } else {
+                            alert('Error: ' + data.error);
+                        }
+                    })
+                    .catch(error => {
+                        alert('Failed to delete the image.');
+                        console.error('Error:', error);
+                    });
+                }
+            });
+        }
+    }
+});
+
     
 function goBack(event) {
 
@@ -152,53 +184,110 @@ function initMap() {
     
 function toggleFaceLocations(type) {
 
-    const mediaId = document.querySelector('img[data-media-id]').getAttribute('data-media-id');
-    const container = document.getElementById('image-container');
-    const imageElement = document.getElementById('media-image');
+    const mediaId = document.querySelector('img[data-media-id]').getAttribute('data-media-id');
+    const container = document.getElementById('image-container');
+    const imageElement = document.getElementById('media-image');
 
-    // Calculate scaling factors
-    const originalWidth = 1536; // Your original image width
-    const originalHeight = 2048; // Your original image height
-    const displayedWidth = imageElement.clientWidth;
-    const displayedHeight = imageElement.clientHeight;
+    const img = new Image();
+    img.src = imageElement.src;
 
-    const widthScale = displayedWidth / originalWidth;
-    const heightScale = displayedHeight / originalHeight;  
+    img.onload = function() {
+        const originalWidth = img.naturalWidth;
+        const originalHeight = img.naturalHeight;
+        const displayedWidth = imageElement.clientWidth;
+        const displayedHeight = imageElement.clientHeight;
 
-    // Clear existing face rectangles
-    const existingRects = document.querySelectorAll('.face-rect');
-    existingRects.forEach(rect => rect.remove());
+        const widthScale = displayedWidth / originalWidth;
+        const heightScale = displayedHeight / originalHeight;
 
-    fetch(`/media/fetch-face-locations/${mediaId}/?type=${type}`)
-        .then(response => response.json())
-        .then(data => {
-            data.face_locations.forEach(face => {
-                const rect = document.createElement('div');
-                rect.classList.add('face-rect');
-                rect.style.position = 'absolute';
-                rect.style.border = '2px solid red';
-                rect.style.left = `${face.left * widthScale}px`;
-                rect.style.top = `${face.top * heightScale}px`;
-                rect.style.width = `${(face.right - face.left) * widthScale}px`;
-                rect.style.height = `${(face.bottom - face.top) * heightScale}px`;
-                rect.style.zIndex = '10';
-                container.appendChild(rect);
+        // Clear existing face rectangles
+        const existingRects = document.querySelectorAll('.face-rect');
+        existingRects.forEach(rect => rect.remove());
 
-                // Add name label that can be edited
-                const label = document.createElement('input');
-                label.type = 'text';
-                label.value = face.name || '';  // Ensure the label is empty if no name is found
-                label.classList.add('face-name-input');
-                label.style.position = 'absolute';
-                label.style.top = `${(face.bottom * heightScale) + 5}px`; // Position the label below the box
-                label.style.left = `${face.left * widthScale}px`;
-                label.style.zIndex = '11'; 
+        fetch(`/media/fetch-face-locations/${mediaId}/?type=${type}`)
+            .then(response => response.json())
+            .then(data => {
+                data.face_locations.forEach(face => {
+                    // Apply filters based on the type (all vs identified)
+                    if (type === 'identified' && (face.name.startsWith('unknown_') || face.is_invalid)) {
+                        return; // Skip unknown or invalid faces when showing identified faces
+                    }
 
-                container.appendChild(label);
-            });
-        })
-        .catch(error => console.error('Error', error));
+                    const margin = 30;  // Apply the same margin as in searchFaces
+                    const topWithMargin = face.top - margin;
+                    const rightWithMargin = face.right + margin;
+                    const bottomWithMargin = face.bottom + margin;
+                    const leftWithMargin = face.left - margin;
+
+                    const scaledTop = topWithMargin * heightScale;
+                    const scaledLeft = leftWithMargin * widthScale;
+                    const scaledWidth = (rightWithMargin - leftWithMargin) * widthScale;
+                    const scaledHeight = (bottomWithMargin - topWithMargin) * heightScale;
+
+                    const rect = document.createElement('div');
+                    rect.classList.add('face-rect');
+                    rect.style.position = 'absolute';
+                    rect.style.border = face.is_invalid ? '2px solid green' : '2px solid red';
+                    rect.style.left = `${scaledLeft}px`;
+                    rect.style.top = `${scaledTop}px`;
+                    rect.style.width = `${scaledWidth}px`;
+                    rect.style.height = `${scaledHeight}px`;
+                    rect.style.zIndex = '10';
+                    container.appendChild(rect);
+
+                    // Add name label that can be edited
+                    const label = document.createElement('input');
+                    label.type = 'text';
+                    label.value = (face.name.startsWith('unknown_') && type === 'all') ? '' : face.name || '';  // Empty for unknown names in 'all' type
+                    label.classList.add('face-name-input');
+                    label.style.position = 'absolute';
+                    label.style.top = `${(scaledTop + scaledHeight + 5)}px`; // Position the label below the box
+                    label.style.left = `${scaledLeft}px`;
+                    label.style.zIndex = '11';
+
+                    container.appendChild(label);
+
+                    // Add invalid checkbox for toggling validity
+                    const invalidCheckbox = document.createElement('input');
+                    invalidCheckbox.type = 'checkbox';
+                    invalidCheckbox.checked = face.is_invalid || false;
+                    invalidCheckbox.style.position = 'absolute';
+                    invalidCheckbox.style.top = `${scaledTop - 20}px`; // Position it above the box
+                    invalidCheckbox.style.left = `${scaledLeft}px`;
+                    invalidCheckbox.style.zIndex = '12';
+
+                    invalidCheckbox.addEventListener('change', function() {
+                        const isInvalid = invalidCheckbox.checked;
+                        if (isInvalid) {
+                            label.style.display = 'none'; // Hide the text box when invalid
+                        } else {
+                            label.style.display = 'block'; // Show the text box when not invalid
+                            label.focus();
+                        }
+
+                        updateFaceValidity(mediaId, face, isInvalid).then(() => {
+                            rect.style.border = isInvalid ? '2px solid green' : '2px solid red';
+                        }).catch(error => {
+                            console.error('Error updating face validity:', error);
+                        });
+                    });
+
+                    label.addEventListener('blur', function() {
+                        label.disabled = true;
+                        updateFaceName(mediaId, face, label.value, face.encoding).finally(() => {
+                            label.disabled = false;
+                            fetchAndUpdateTags(mediaId); // Refresh tags after updating
+                        });
+                    });
+
+                    container.appendChild(invalidCheckbox);
+                });
+            })
+            .catch(error => console.error('Error', error));
+    };
 }
+
+    
     
 function searchFaces() {
 

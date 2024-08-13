@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}
+Login
+{% endblock %}
+
+{% block content %}
+<div class="container d-flex align-items-center justify-content-center min-vh-100">
+    <div class="row w-100">
+        <div class="col-md-6 offset-md-3">
+            <div class="card bg-black text-white">
+                <div class="card-body">
+                    <h2 class="text-center mb-4">Login</h2>
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="form-group">
+                            {{ form.username.label_tag }}
+                            {{ form.username }}
+                        </div>
+                        <div class="form-group">
+                            {{ form.password.label_tag }}
+                            {{ form.password }}
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <button type="submit" class="btn btn-black btn-md">Login</button>
+                            <a href="{% url 'account:password_reset' %}" class="text-white opacity-75">Forgot Password?</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

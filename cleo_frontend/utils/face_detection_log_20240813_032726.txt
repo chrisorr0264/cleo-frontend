@@ -1,0 +1,173 @@
+Face Detection Log - 2024-08-13 03:27:26
+==================================================
+
+Processed image: 2014-04-06-0006747.jpg
+Path: /mnt/MOM/Images/2014-04-06-0000012.jpg
+Number of faces detected: 0
+--------------------------------------------------
+Image not found: /mnt/MOM/Images/2024-07-20-0044803.MOV
+
+Processed image: IMG_0538.HEIC
+Path: /mnt/MOM/Images/2023-07-27-0046131.jpg
+Number of faces detected: 0
+--------------------------------------------------
+
+Processed image: IMG_1897_1.HEIC
+Path: /mnt/MOM/Images/2022-07-27-0047459.jpg
+Number of faces detected: 2
+  Face Location - Top: 1589, Right: 726, Bottom: 2144, Left: 171
+    Associated Name: Natasha Orr
+  Face Location - Top: 855, Right: 1241, Bottom: 1122, Left: 973
+    Associated Name: unknown_47459_4accd867
+--------------------------------------------------
+
+Processed image: IMG_2682_1.HEIC
+Path: /mnt/MOM/Images/2020-07-17-0048787.jpg
+Number of faces detected: 0
+--------------------------------------------------
+Image not found: /mnt/MOM/Images/2024-07-20-0044804.MOV
+
+Processed image: IMG_0534.HEIC
+Path: /mnt/MOM/Images/2023-07-26-0046132.jpg
+Number of faces detected: 2
+  Face Location - Top: 2002, Right: 1469, Bottom: 2960, Left: 510
+    Associated Name: Chris Orr
+  Face Location - Top: 526, Right: 2881, Bottom: 562, Left: 2845
+    Associated Name: unknown_36252_112c70e9
+--------------------------------------------------
+
+Processed image: IMG_1896.HEIC
+Path: /mnt/MOM/Images/2022-07-27-0047460.jpg
+Number of faces detected: 1
+  Face Location - Top: 1959, Right: 1281, Bottom: 2514, Left: 726
+    Associated Name: Natasha Orr
+--------------------------------------------------
+
+Processed image: IMG_2678_1.HEIC
+Path: /mnt/MOM/Images/2020-07-15-0048788.jpg
+Number of faces detected: 0
+--------------------------------------------------
+
+Processed image: IMG_2149.PNG
+Path: /mnt/MOM/Images/2024-07-17-0044805.PNG
+Number of faces detected: 1
+  Face Location - Top: 985, Right: 712, Bottom: 1207, Left: 489
+    Associated Name: unknown_44805_d77c11f2
+--------------------------------------------------
+
+Processed image: IMG_0533.HEIC
+Path: /mnt/MOM/Images/2023-07-26-0046133.jpg
+Number of faces detected: 1
+  Face Location - Top: 1891, Right: 1635, Bottom: 3042, Left: 485
+    Associated Name: Chris Orr
+--------------------------------------------------
+
+Processed image: IMG_1895_1.HEIC
+Path: /mnt/MOM/Images/2022-07-27-0047461.jpg
+Number of faces detected: 2
+  Face Location - Top: 1735, Right: 1118, Bottom: 2197, Left: 656
+    Associated Name: unknown_36252_112c70e9
+  Face Location - Top: 1313, Right: 1934, Bottom: 2112, Left: 1135
+    Associated Name: Chris Orr
+--------------------------------------------------
+
+Processed image: IMG_2679_1.HEIC
+Path: /mnt/MOM/Images/2020-07-15-0048789.jpg
+Number of faces detected: 1
+  Face Location - Top: 1133, Right: 3994, Bottom: 1208, Left: 3920
+    Associated Name: Natasha Orr
+--------------------------------------------------
+Image not found: /mnt/MOM/Images/2023-04-28-0000062.mp4
+
+Processed image: IMG_2152.HEIC
+Path: /mnt/MOM/Images/2024-07-20-0044806.jpg
+Number of faces detected: 1
+  Face Location - Top: 958, Right: 2289, Bottom: 1757, Left: 1490
+    Associated Name: Chris Orr
+--------------------------------------------------
+
+Processed image: IMG_0532.HEIC
+Path: /mnt/MOM/Images/2023-07-26-0046134.jpg
+Number of faces detected: 1
+  Face Location - Top: 1636, Right: 1763, Bottom: 2786, Left: 613
+    Associated Name: Chris Orr
+--------------------------------------------------
+
+Processed image: IMG_1893.HEIC
+Path: /mnt/MOM/Images/2022-07-27-0047462.jpg
+Number of faces detected: 0
+--------------------------------------------------
+
+Processed image: IMG_2677_1.HEIC
+Path: /mnt/MOM/Images/2020-07-15-0048790.jpg
+Number of faces detected: 1
+  Face Location - Top: 1093, Right: 1360, Bottom: 1360, Left: 1092
+    Associated Name: Chris Orr
+--------------------------------------------------
+
+Processed image: IMG_2147.HEIC
+Path: /mnt/MOM/Images/2024-07-17-0044807.jpg
+Number of faces detected: 0
+--------------------------------------------------
+
+Processed image: IMG_0531.HEIC
+Path: /mnt/MOM/Images/2023-07-26-0046135.jpg
+Number of faces detected: 1
+  Face Location - Top: 1612, Right: 1389, Bottom: 2277, Left: 724
+    Associated Name: Chris Orr
+--------------------------------------------------
+
+Processed image: IMG_1894_1.HEIC
+Path: /mnt/MOM/Images/2022-07-27-0047463.jpg
+Number of faces detected: 1
+  Face Location - Top: 563, Right: 2024, Bottom: 786, Left: 1801
+    Associated Name: Natasha Orr
+--------------------------------------------------
+
+Processed image: IMG_2676_1.HEIC
+Path: /mnt/MOM/Images/2020-07-15-0048791.jpg
+Number of faces detected: 1
+  Face Location - Top: 1152, Right: 1419, Bottom: 1420, Left: 1152
+    Associated Name: Chris Orr
+--------------------------------------------------
+
+Processed image: camphoto_1804928587.jpg
+Path: /mnt/MOM/Images/UnknownDate-0044808.jpg
+Number of faces detected: 0
+--------------------------------------------------
+
+Processed image: IMG_0530.HEIC
+Path: /mnt/MOM/Images/2023-07-25-0046136.jpg
+Number of faces detected: 0
+--------------------------------------------------
+
+Processed image: IMG_1889_1.HEIC
+Path: /mnt/MOM/Images/2022-07-27-0047464.jpg
+Number of faces detected: 1
+  Face Location - Top: 1845, Right: 1224, Bottom: 2644, Left: 425
+    Associated Name: Natasha Orr
+--------------------------------------------------
+
+Processed image: IMG_2675_1.HEIC
+Path: /mnt/MOM/Images/2020-07-15-0048792.jpg
+Number of faces detected: 1
+  Face Location - Top: 1182, Right: 1419, Bottom: 1449, Left: 1152
+    Associated Name: Chris Orr
+--------------------------------------------------
+
+Processed image: IMG_2151.PNG
+Path: /mnt/MOM/Images/2024-07-19-0044809.PNG
+Number of faces detected: 0
+--------------------------------------------------
+
+Processed image: IMG_0529.HEIC
+Path: /mnt/MOM/Images/2023-07-24-0046137.jpg
+Number of faces detected: 0
+--------------------------------------------------
+
+Processed image: IMG_1890_1.HEIC
+Path: /mnt/MOM/Images/2022-07-27-0047465.jpg
+Number of faces detected: 1
+  Face Location - Top: 1845, Right: 1224, Bottom: 2644, Left: 425
+    Associated Name: Natasha Orr
+--------------------------------------------------
