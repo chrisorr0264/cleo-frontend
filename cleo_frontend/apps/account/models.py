@@ -9,3 +9,14 @@ class UserRegistrationRequest(models.Model):
 
     def __str__(self):
         return self.name
+
+class GallerySettings(models.Model):
+    SORT_OPTIONS = [
+        ('date_asc', 'Oldest First'),
+        ('date_desc', 'Most Recent First'),
+    ]
+    
+    order_by = models.CharField(max_length=20, choices=SORT_OPTIONS, default='date_desc')
+
+    def __str__(self):
+        return f"Gallery Order: {self.get_order_by_display()}"

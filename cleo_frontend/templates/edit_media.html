@@ -58,7 +58,12 @@
             <h4>Edit Tools</h4>
 
             <div class="text-center mb-4">
-                <button id="delete-button" data-media-id="{{ media.media_object_id }}" class="btn btn-danger mb-4">Delete</button>
+                {% if user.is_superuser %}
+                    <form method="POST" action ="{% url 'delete_image' media.media_object_id %}"
+                        {% csrf_token %}
+                        <button id="delete-button" data-media-id="{{ media.media_object_id }}" class="btn btn-danger mb-4">Delete</button>
+                    </form>
+                {% endif %}
             </div>
 
             <div class="mb-4">

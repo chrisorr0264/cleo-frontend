@@ -15,7 +15,7 @@ class TblMediaObjects(models.Model):
     location_city = models.CharField(max_length=60, blank=True, null=True)
     location_province = models.CharField(max_length=60, blank=True, null=True)
     location_country = models.CharField(max_length=60, blank=True, null=True)
-    tag_assigned = models.IntegerField(blank=True, null=True)
+    is_secret = models.BooleanField(default=False)
     created_date = models.DateTimeField(blank=True, null=True)
     created_by = models.CharField(max_length=120, blank=True, null=True)
     created_ip = models.CharField(max_length=20, blank=True, null=True)

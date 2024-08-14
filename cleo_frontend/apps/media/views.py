@@ -3,6 +3,7 @@ from django.shortcuts import render, get_object_or_404
 from django.urls import get_resolver
 from django.http import JsonResponse, HttpRequest, HttpResponse
 from .models import TblMediaObjects, TblTags, TblTagsToMedia, TblFaceLocations, TblFaceMatches, TblKnownFaces, TblIdentities
+from ..account.models import GallerySettings
 from django.conf import settings
 from django.db.models import Q
 from django.views.decorators.csrf import csrf_exempt
@@ -41,7 +42,27 @@ def generate_paths(media):
 
 @login_required
 def gallery(request: HttpRequest) -> HttpResponse:
-    media_files = list(TblMediaObjects.objects.using('media').filter(media_type='image'))
+    user = request.user
+
+    gallery_settings = GallerySettings.objects.first()
+    if gallery_settings:
+        order_by = gallery_settings.order_by
+    else:
+        order_by = 'date_desc'
+    
+    # Map the order_by value to the actual field names
+    allowed_order_by_fields = {
+        'date_asc': 'media_create_date',
+        'date_desc': '-media_create_date',
+    }
+    order_by_field = allowed_order_by_fields.get(order_by, '-media_create_date')
+
+
+    if user.is_superuser:
+        media_files = list(TblMediaObjects.objects.using('media').filter(media_type='image')).order_by(order_by_field)
+    else:
+        media_files = list(TblMediaObjects.objects.using('media').filter(media_type='image', is_secret=False)).order_by(order_by_field)
+    
     random.shuffle(media_files)
     media_files = media_files[:100]
 
@@ -67,6 +88,7 @@ def gallery(request: HttpRequest) -> HttpResponse:
     })
 
 def photo_search(request: HttpRequest) -> HttpResponse:
+    user = request.user
     from_date = request.GET.get('from_date')
     to_date = request.GET.get('to_date')
     tags = request.GET.getlist('tags')
@@ -75,6 +97,10 @@ def photo_search(request: HttpRequest) -> HttpResponse:
     media_object_id = request.GET.get('media_object_id')  # Add media_object_id to the search parameters
 
     filters = Q(media_type='image')
+
+    if not user.is_superuser:
+        filters &= Q(is_secret=False)
+
     title_parts = []
 
     if media_object_id:
