@@ -9,8 +9,6 @@ import { fetchAndUpdateTags } from "./tags.js";
 // Function to show face boxes when button pressed
 export function toggleFaceLocations(type) {
     try {
-        console.log('toggleFaceLocations function called');
-
         const mediaId = document.querySelector('img[data-media-id]').getAttribute('data-media-id');
         const container = document.getElementById('image-container');
         const imageElement = document.getElementById('media-image');
@@ -35,12 +33,11 @@ export function toggleFaceLocations(type) {
                 .then(response => response.json())
                 .then(data => {
                     data.face_locations.forEach(face => {
-                        // Apply filters based on the type (all vs identified)
                         if (type === 'identified' && (face.name.startsWith('unknown_') || face.is_invalid)) {
-                            return; // Skip unknown or invalid faces when showing identified faces
+                            return;
                         }
 
-                        const margin = 30;  // Apply the same margin as in searchFaces
+                        const margin = 30;  
                         const topWithMargin = face.top - margin;
                         const rightWithMargin = face.right + margin;
                         const bottomWithMargin = face.bottom + margin;
@@ -62,35 +59,31 @@ export function toggleFaceLocations(type) {
                         rect.style.zIndex = '10';
                         container.appendChild(rect);
 
-                        // Add name label that can be edited
-                        console.log('Adding label element');
-
                         const label = document.createElement('input');
                         label.type = 'text';
-                        label.value = (face.name.startsWith('unknown_') && type === 'all') ? '' : face.name || '';  // Empty for unknown names in 'all' type
+                        label.value = (face.name.startsWith('unknown_') && type === 'all') ? '' : face.name || '';  
                         label.classList.add('face-name-input');
                         label.style.position = 'absolute';
-                        label.style.top = `${(scaledTop + scaledHeight + 5)}px`; // Position the label below the box
+                        label.style.top = `${(scaledTop + scaledHeight + 5)}px`;
                         label.style.left = `${scaledLeft}px`;
                         label.style.zIndex = '11';
 
                         container.appendChild(label);
 
-                        // Add invalid checkbox for toggling validity
                         const invalidCheckbox = document.createElement('input');
                         invalidCheckbox.type = 'checkbox';
                         invalidCheckbox.checked = face.is_invalid || false;
                         invalidCheckbox.style.position = 'absolute';
-                        invalidCheckbox.style.top = `${scaledTop - 20}px`; // Position it above the box
+                        invalidCheckbox.style.top = `${scaledTop - 20}px`;
                         invalidCheckbox.style.left = `${scaledLeft}px`;
                         invalidCheckbox.style.zIndex = '12';
 
                         invalidCheckbox.addEventListener('change', function() {
                             const isInvalid = invalidCheckbox.checked;
                             if (isInvalid) {
-                                label.style.display = 'none'; // Hide the text box when invalid
+                                label.style.display = 'none';
                             } else {
-                                label.style.display = 'block'; // Show the text box when not invalid
+                                label.style.display = 'block';
                                 label.focus();
                             }
 
@@ -103,27 +96,12 @@ export function toggleFaceLocations(type) {
 
                         if (label) {
                             label.addEventListener('blur', function() {
-
-                                console.log('mediaId:', mediaId);
-                                console.log('face:', face);
-                                console.log('label.value:', label.value);
-                                console.log('face.encoding:', face.encoding);
-                            
-                                if (!mediaId || !face || !face.encoding) {
-                                    console.error('Missing required parameters in event listener');
-                                    return;
-                                }
-
-                                const faceEncodingBytes = hexToBytes(face.encoding);
-
                                 label.disabled = true;
-                                updateFaceName(mediaId, face, label.value, faceEncodingBytes).finally(() => {
+                                updateFaceName(mediaId, face, label.value, face.encoding_hash).finally(() => {
                                     label.disabled = false;
-                                    fetchAndUpdateTags(mediaId); // Refresh tags after updating
+                                    fetchAndUpdateTags(mediaId);
                                 });
                             });
-                        } else {
-                            console.error('Label element not found');
                         }
                         container.appendChild(invalidCheckbox);
                     });
@@ -137,217 +115,201 @@ export function toggleFaceLocations(type) {
 
 // Function to search for new face locations and compare to known faces
 export function searchFaces() {
-    console.log("Search faces is triggered");
+    const loadingIndicator = document.getElementById("loading-indicator");
+    loadingIndicator.style.display = "block";
 
-    // Show the loading indicator
-    const loadingIndicator = document.getElementById("loading-indicator");
-    loadingIndicator.style.display = "block";
+    const mediaId = document.querySelector('img[data-media-id]').getAttribute('data-media-id');
+    const imageElement = document.querySelector('img[data-media-id]');
 
-    const mediaId = document.querySelector('img[data-media-id]').getAttribute('data-media-id');
-    const imageElement = document.querySelector('img[data-media-id]');
+    const img = new Image();
 
-    const img = new Image();
+    img.src = imageElement.src;
 
-    img.src = imageElement.src;
+    img.onload = function() {
+        const originalWidth = img.naturalWidth;
+        const originalHeight = img.naturalHeight;
+        const displayedWidth = imageElement.clientWidth;
+        const displayedHeight = imageElement.clientHeight;
+        const widthScale = displayedWidth / originalWidth;
+        const heightScale = displayedHeight / originalHeight;
 
-    img.onload = function() {
-        const originalWidth = img.naturalWidth;
-        const originalHeight = img.naturalHeight;
-        const displayedWidth = imageElement.clientWidth;
-        const displayedHeight = imageElement.clientHeight;
-        const widthScale = displayedWidth / originalWidth;
-        const heightScale = displayedHeight / originalHeight;
+        fetch(`/media/search-faces/${mediaId}/`)
+            .then(response => response.json())
+            .then(data => {
+                setTimeout(() => {
+                    data.faces.forEach(face => {
+                        const margin = 30;  
+                        const topWithMargin = face.top - margin;
+                        const rightWithMargin = face.right + margin;
+                        const bottomWithMargin = face.bottom + margin;
+                        const leftWithMargin = face.left - margin;
 
-        fetch(`/media/search-faces/${mediaId}/`)
-            .then(response => response.json())
-            .then(data => {
-                console.log("Received data from backend:", data);  
+                        const scaledTop = topWithMargin * heightScale;
+                        const scaledLeft = leftWithMargin * widthScale;
+                        const scaledWidth = (rightWithMargin - leftWithMargin) * widthScale;
+                        const scaledHeight = (bottomWithMargin - topWithMargin) * heightScale;
 
-                // Slight delay to simulate processing time
-                setTimeout(() => {
-                    data.faces.forEach(face => {
-                        console.log(`Processing face: top=${face.top}, left=${face.left}, right=${face.right}, bottom=${face.bottom}, name=${face.name}`);
+                        const box = document.createElement('div');
 
-                        const margin = 30;  // Margin for display purposes only
+                        box.classList.add('face-rect');
+                        box.style.position = 'absolute';
+                        box.style.border = face.is_invalid ? '2px solid green' : '2px solid red';
+                        box.style.top = scaledTop + 'px';
+                        box.style.left = scaledLeft + 'px';
+                        box.style.width = scaledWidth + 'px';
+                        box.style.height = scaledHeight + 'px';
+                        box.style.zIndex = '10';
 
-                        // Apply margins only for display
-                        const topWithMargin = face.top - margin;
-                        const rightWithMargin = face.right + margin;
-                        const bottomWithMargin = face.bottom + margin;
-                        const leftWithMargin = face.left - margin;
+                        const isUnknown = typeof face.name === 'string' && face.name.startsWith('unknown_');
+                        const label = document.createElement('input');
 
-                        const scaledTop = topWithMargin * heightScale;
-                        const scaledLeft = leftWithMargin * widthScale;
-                        const scaledWidth = (rightWithMargin - leftWithMargin) * widthScale;
-                        const scaledHeight = (bottomWithMargin - topWithMargin) * heightScale;
+                        label.type = 'text';
+                        label.value = isUnknown ? '' : face.name || '';  
+                        label.classList.add('face-name-input');
+                        label.style.position = 'absolute';
+                        label.style.top = (scaledTop + scaledHeight + 5) + 'px';
+                        label.style.left = scaledLeft + 'px';
+                        label.style.zIndex = '11';
 
-                        const box = document.createElement('div');
+                        const invalidCheckbox = document.createElement('input');
+                        invalidCheckbox.type = 'checkbox';
+                        invalidCheckbox.checked = face.is_invalid || false;
+                        invalidCheckbox.style.position = 'absolute';
+                        invalidCheckbox.style.top = (scaledTop - 20) + 'px';
+                        invalidCheckbox.style.left = scaledLeft + 'px';
+                        invalidCheckbox.style.zIndex = '12';
 
-                        box.classList.add('face-rect');
-                        box.style.position = 'absolute';
-                        box.style.border = face.is_invalid ? '2px solid green' : '2px solid red';
-                        box.style.top = scaledTop + 'px';
-                        box.style.left = scaledLeft + 'px';
-                        box.style.width = scaledWidth + 'px';
-                        box.style.height = scaledHeight + 'px';
-                        box.style.zIndex = '10';
+                        invalidCheckbox.addEventListener('change', function() {
+                            const isInvalid = invalidCheckbox.checked;
+                            if (isInvalid) {
+                                label.style.display = 'none';
+                            } else {
+                                label.style.display = 'block';
+                                label.focus();
+                            }
 
-                        const isUnknown = typeof face.name === 'string' && face.name.startsWith('unknown_');
-                        const label = document.createElement('input');
+                            updateFaceValidity(mediaId, face, isInvalid).then(() => {
+                                box.style.border = isInvalid ? '2px solid green' : '2px solid red';
+                            }).catch(error => {
+                                console.error('Error updating face validity:', error);
+                            });
+                        });
 
-                        label.type = 'text';
-                        label.value = isUnknown ? '' : face.name || '';  // Ensure the label is empty if no name is found
-                        label.classList.add('face-name-input');
-                        label.style.position = 'absolute';
-                        label.style.top = (scaledTop + scaledHeight + 5) + 'px'; // Position the label below the box
-                        label.style.left = scaledLeft + 'px';
-                        label.style.zIndex = '11';
+                        label.addEventListener('blur', function() {
+                            label.disabled = true;
+                            updateFaceName(mediaId, face, label.value, face.encoding_hash).finally(() => {
+                                label.disabled = false;
+                                fetchAndUpdateTags(mediaId);
+                            });
+                        });
 
-                        const invalidCheckbox = document.createElement('input');
-                        invalidCheckbox.type = 'checkbox';
-                        invalidCheckbox.checked = face.is_invalid || false;
-                        invalidCheckbox.style.position = 'absolute';
-                        invalidCheckbox.style.top = (scaledTop - 20) + 'px'; // Position it above the box
-                        invalidCheckbox.style.left = scaledLeft + 'px';
-                        invalidCheckbox.style.zIndex = '12';
+                        document.getElementById('image-container').appendChild(box);
+                        document.getElementById('image-container').appendChild(label);
+                        document.getElementById('image-container').appendChild(invalidCheckbox);
 
-                        invalidCheckbox.addEventListener('change', function() {
-                            const isInvalid = invalidCheckbox.checked;
-                            console.log("Checkbox changed:", isInvalid);
+                        if(face.is_invalid) {
+                            label.style.display = 'none';
+                        }
+                    });
 
-                            if (isInvalid) {
-                                label.style.display = 'none'; // Hide the text box when invalid
-                            } else {
-                                label.style.display = 'block'; // Show the text box when not invalid
-                                label.focus();
-                            }
+                    loadingIndicator.style.display = "none";
 
-                            updateFaceValidity(mediaId, face, isInvalid).then(() => {
-                                box.style.border = isInvalid ? '2px solid green' : '2px solid red';
-                            }).catch(error => {
-                                console.error('Error updating face validity:', error);
-                            });
-                        });
+                    fetchAndUpdateTags(mediaId);
 
-                        label.addEventListener('blur', function() {
-                            label.disabled = true;
-                            updateFaceName(mediaId, face, label.value, face.encoding).finally(() => {
-                                label.disabled = false;
-                        fetchAndUpdateTags(mediaId); //Refresh tags after updating
-                            });
-                        });
-
-
-                        document.getElementById('image-container').appendChild(box);
-                        document.getElementById('image-container').appendChild(label);
-                        document.getElementById('image-container').appendChild(invalidCheckbox);
-
-                        if(face.is_invalid) {
-                            label.style.display = 'none';
-                        }
-                    });
-
-                  // Hide the loading indicator
-                    loadingIndicator.style.display = "none";
-
-            // Update tags after processing faces
-            fetchAndUpdateTags(mediaId)
-
-                }, 500); // 500ms delay to ensure visibility
-            })
-            .catch(error => {
-                console.error('Error fetching face data:', error);
-                loadingIndicator.style.display = "none"; // Hide the loading indicator on error
-            });
-    };
+                }, 500); 
+            })
+            .catch(error => {
+                console.error('Error fetching face data:', error);
+                loadingIndicator.style.display = "none";
+            });
+    };
 }
 
 // Function to update the assigned face name
-export function updateFaceName(mediaId, face, newName, faceEncoding) {  
+export function updateFaceName(mediaId, face, newName, faceHash) {  
 
-    if (!mediaId || !face || !faceEncoding) {  
-        console.error('JS Missing required parameters');
-        return Promise.reject('Missing required parameters');
-    }
+    if (!mediaId || !face || !faceHash) {  
+        console.error('JS Missing required parameters');
+        return Promise.reject('Missing required parameters');
+    }
 
-    // Treat an empty or whitespace-only `newName` as 'unknown'
-    const finalName = newName.trim() || `unknown_${mediaId}_${faceEncoding.join('')}`;
+    const finalName = newName.trim() || `unknown_${mediaId}_${faceHash}`;
 
-    return fetch('/media/update-face-name/', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-        },
-        body: JSON.stringify({
-            media_id: mediaId,
-            face: {
-                top: face.top,
-                right: face.right,
-                bottom: face.bottom,
-                left: face.left
-            },
-            new_name: finalName,
-            face_encoding: Array.from(faceEncoding)  // Ensure encoding is passed as an array
-        })
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
-        }
-        return response.json();
-    })
-    .then(data => {
-        if (data.success) {
-            console.log('Face name updated successfully:', data);
-        console.log(typeof fetchAndUpdateTags);
-        fetchAndUpdateTags(mediaId); //Refresh tags
-        } else {
-            console.error('Error updating face name:', data.error);
-        }
-    })
-    .catch(error => {
-        console.error('There was a problem with the fetch operation:', error);
-    });
+    return fetch('/media/update-face-name/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify({
+            media_id: mediaId,
+            face: {
+                top: face.top,
+                right: face.right,
+                bottom: face.bottom,
+                left: face.left
+            },
+            new_name: finalName,
+            face_hash: faceHash  
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            console.log('Face name updated successfully:', data);
+            fetchAndUpdateTags(mediaId); 
+        } else {
+            console.error('Error updating face name:', data.error);
+        }
+    })
+    .catch(error => {
+        console.error('There was a problem with the fetch operation:', error);
+    });
 }
 
-// Function to update  whether a face location is invalid
+// Function to update whether a face location is invalid
 export function updateFaceValidity(mediaId, face, isInvalid) {
 
-    return fetch('/media/update-face-validity/', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-        },
-        body: JSON.stringify({
-            media_id: mediaId,
-            face: {
-                top: face.top,
-                right: face.right,
-                bottom: face.bottom,
-                left: face.left
-            },
-            is_invalid: isInvalid
-        })
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
-        }
-        return response.json();
-    })
-    .then(data => {
-        if (data.success) {
-            console.log('Face validity updated successfully:', data);
-        } else {
-            console.error('Error updating face validity:', data.error);
-        }
-    })
-    .catch(error => {
-        console.error('There was a problem with the fetch operation:', error);
-    });
-}
+    return fetch('/media/update-face-validity/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify({
+            media_id: mediaId,
+            face: {
+                top: face.top,
+                right: face.right,
+                bottom: face.bottom,
+                left: face.left
+            },
+            is_invalid: isInvalid,
+            face_hash: face.encoding_hash  // Ensure the hash is used for validation
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            console.log('Face validity updated successfully:', data);
+        } else {
+            console.error('Error updating face validity:', data.error);
+        }
+    })
+    .catch(error => {
+        console.error('There was a problem with the fetch operation:', error);
+    });
+  }
 
 // Function to mark a face as invalid
 export function markFaceAsInvalid(mediaId, faceLocation) {

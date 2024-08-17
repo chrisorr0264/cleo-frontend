@@ -1,8 +1,3 @@
-'''
-A face recognition utility used throughout the cleo project.
-2024 Christopher Orr
-'''
-
 from PIL import UnidentifiedImageError
 import hashlib
 import face_recognition
@@ -10,25 +5,25 @@ import numpy as np
 import time
 from ..apps.media.models import TblMediaObjects, TblKnownFaces, TblFaceMatches, TblFaceLocations, TblIdentities, TblTags, TblTagsToMedia
 
-
 class FaceLabeler:
     def __init__(self):
         self.known_face_encodings = []
         self.known_face_names = []
+        self.known_face_hashes = []  # To store the hashes of known encodings
         self._load_known_faces_from_db()
 
     def _load_known_faces_from_db(self):
         """
-        Load all known faces and their encodings from the database
+        Load all known faces and their hashes from the database
         """
         known_faces = TblKnownFaces.objects.select_related('identity').all()
 
         for known_face in known_faces:
             name = known_face.identity.name
-            encoding = known_face.encoding
+            encoding_hash = known_face.encoding_hash
 
             self.known_face_names.append(name)
-            self.known_face_encodings.append(np.frombuffer(encoding, dtype=np.float64))
+            self.known_face_hashes.append(encoding_hash)
 
     def validate_image(self, image_path):
         """
@@ -64,11 +59,11 @@ class FaceLabeler:
 
     def match_face_to_known(self, encoding):
         """
-        Try to match a face encoding to known faces. Returns the matched identity or None.
+        Try to match a face encoding to known faces using their hash. Returns the matched identity or None.
         """
-        matches = face_recognition.compare_faces(self.known_face_encodings, encoding)
-        if True in matches:
-            first_match_index = matches.index(True)
+        encoding_hash = hashlib.sha256(encoding).hexdigest()
+        if encoding_hash in self.known_face_hashes:
+            first_match_index = self.known_face_hashes.index(encoding_hash)
             matched_name = self.known_face_names[first_match_index]
             identity = TblIdentities.objects.get(name=matched_name)
             return identity
@@ -80,11 +75,12 @@ class FaceLabeler:
         Also, manage tags associated with the face.
         """
         top, right, bottom, left = face_location
+        encoding_hash = hashlib.sha256(encoding).hexdigest()
 
         # Save or update TblKnownFaces
         known_face, created = TblKnownFaces.objects.get_or_create(
-            encoding=encoding.tobytes(),
-            identity=identity
+            encoding_hash=encoding_hash,
+            defaults={'encoding': encoding.tobytes(), 'identity': identity}
         )
 
         # Save or update TblFaceLocations
@@ -94,7 +90,7 @@ class FaceLabeler:
             right=right,
             bottom=bottom,
             left=left,
-            defaults={'encoding': encoding.tobytes(), 'is_invalid': False}
+            defaults={'encoding_hash': encoding_hash, 'encoding': encoding.tobytes(), 'is_invalid': False}
         )
 
         # Save or update TblFaceMatches
@@ -126,9 +122,7 @@ class FaceLabeler:
         Can optionally process manually provided face locations.
         """
         image = self.validate_image(image_path)
-        print("Image validation completed. Image: ", image)
         if image is None:
-            print("Invalid image.")
             return
 
         if manual_face_locations:
@@ -142,7 +136,7 @@ class FaceLabeler:
         for i, face_location in enumerate(face_locations):
             encoding = face_encodings[i]
 
-            # Try to match with known faces
+            # Try to match with known faces using the hash
             identity = self.match_face_to_known(encoding)
 
             # If no match found, create an unknown identity
@@ -151,4 +145,3 @@ class FaceLabeler:
 
             # Save the face data to the database and update tags
             self.save_face_data(media_object_id, face_location, encoding, identity)
-

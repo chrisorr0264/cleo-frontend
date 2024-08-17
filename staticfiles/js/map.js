@@ -12,25 +12,34 @@ export function initMap() {
     fetch(`/media/get-location-data/${mediaId}/`)
         .then(response => response.json())
         .then(data => {
-            const lat = parseFloat(data.latitude);
-            const lng = parseFloat(data.longitude);
+            let lat = parseFloat(data.latitude);
+            let lng = parseFloat(data.longitude);
 
-            if (!isNaN(lat) && !isNaN(lng)) {
-                const location = { lat: lat, lng: lng };
+            // Check if latitude and longitude are valid
+            let location, zoomLevel;
 
-                const map = new google.maps.Map(mapElement, {
-                    zoom: 8,
-                    center: location
-                });
-
-                new google.maps.Marker({
-                    position: location,
-                    map: map
-                });
+            if (isNaN(lat) || isNaN(lng)) {
+                // Default to the center of Canada if no valid location data is found
+                location = { lat: 56.1304, lng: -106.3468 }; // Center of Canada
+                zoomLevel = 4; // Zoom out to show all of Canada
             } else {
-                console.error("Invalid latitude or longitude received from server.");
+                location = { lat: lat, lng: lng };
+                zoomLevel = 8; // Default zoom level for specific location
+            }
+
+            const map = new google.maps.Map(mapElement, {
+                zoom: zoomLevel,
+                center: location
+            });
+
+            // Only add the marker if there's a valid location
+            if (!isNaN(lat) && !isNaN(lng)) {
+                new google.maps.marker.AdvancedMarkerElement({
+                    map: map,
+                    position: location,
+                    title: "Location"
+                });
             }
         })
         .catch(error => console.error("Error fetching location data:", error));
 }
-

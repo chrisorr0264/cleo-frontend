@@ -20,7 +20,13 @@ document.addEventListener('DOMContentLoaded', function() {
     initAOS();
     siteMenuClone();
     initTagManagement();
-    initMap();
+    // Check if the hidden identifier is present on the page
+    const editMediaIdentifier = document.getElementById('edit-media-identifier');
+
+    if (editMediaIdentifier) {
+        initMap();
+    }
     initImageRotation();
     bindEventListeners();
+
 });

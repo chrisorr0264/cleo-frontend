@@ -247,13 +247,13 @@ def fetch_face_locations(request, media_id):
 
         for face in identified_faces:
             face_location = face.face_location
-            face_encoding = None
+            face_encoding_hash = None
 
             # Fetch the known face associated with this match
             if face.known_face_id:
                 known_face = TblKnownFaces.objects.filter(id=face.known_face_id).first()
                 if known_face:
-                    face_encoding = known_face.encoding.tobytes().hex()
+                    face_encoding_hash = known_face.encoding_hash
 
             face_locations.append({
                 'top': face_location.top,
@@ -262,13 +262,13 @@ def fetch_face_locations(request, media_id):
                 'left': face_location.left,
                 'name': face.face_name,
                 'is_invalid': face_location.is_invalid,
-                'encoding': face_encoding  # Include encoding if it exists
+                'encoding_hash': face_encoding_hash  # Include encoding hash if it exists
             })
     else:  # 'all' case
         all_faces = TblFaceLocations.objects.filter(media_object=media_object)
         for face_location in all_faces:
             face_name = None
-            face_encoding = None  # Initialize encoding variable
+            face_encoding_hash = None  # Initialize encoding hash variable
 
             if face_location.is_invalid:
                 face_name = 'Invalid'
@@ -280,7 +280,7 @@ def fetch_face_locations(request, media_id):
                 if face_match.known_face_id:
                     known_face = TblKnownFaces.objects.filter(id=face_match.known_face_id).first()
                     if known_face:
-                        face_encoding = known_face.encoding.tobytes().hex()
+                        face_encoding_hash = known_face.encoding_hash
 
             face_locations.append({
                 'top': face_location.top,
@@ -289,7 +289,7 @@ def fetch_face_locations(request, media_id):
                 'left': face_location.left,
                 'name': face_name or '',  # If face_name is None, set to empty string
                 'is_invalid': face_location.is_invalid,  # Include is_invalid flag
-                'encoding': face_encoding  # Include encoding in response
+                'encoding_hash': face_encoding_hash  # Include encoding hash in response
             })
 
     return JsonResponse({
@@ -299,44 +299,40 @@ def fetch_face_locations(request, media_id):
 
 
 
+
 @csrf_exempt
 def search_faces(request, media_id):
     try:
-        print("Starting search_faces view")  # Debug line
         media_object = get_object_or_404(TblMediaObjects, pk=media_id)
-        print(f"Media object found: {media_object}")  # Debug line
         image_path = os.path.join(settings.IMAGE_PATH, media_object.new_name)
-        print(f"Image path: {image_path}")  # Debug line
 
         face_labeler = FaceLabeler()
-        print("Facelabeler instance created successfully.")
-
-        
         face_labeler.process_image(image_path, media_id)
-        print("Processed image with face_labeler")  # Debug line
 
         # Fetch all face locations associated with the media_object after processing
         face_locations = TblFaceLocations.objects.filter(media_object=media_object)
-        print(f"Found {face_locations.count()} face locations")  # Debug line
 
         response_data = {'faces': []}
         for face_location in face_locations:
             known_face = face_location.tblfacematches_set.first()
+            encoding_hash = face_location.encoding_hash  # Retrieve the hash
+            face_name = known_face.face_name if known_face else "Unknown"
+
             response_data['faces'].append({
                 'top': face_location.top,
                 'right': face_location.right,
                 'bottom': face_location.bottom,
                 'left': face_location.left,
-                'name': known_face.face_name if known_face else "Unknown",
-                'encoding': np.frombuffer(face_location.encoding, dtype=np.float64).tolist(),
+                'name': face_name,
+                'encoding_hash': encoding_hash,  # Include the encoding hash in the response
                 'is_invalid': face_location.is_invalid
             })
-        print("Returning JSON response")  # Debug line
+
         return JsonResponse(response_data)
 
     except Exception as e:
-        print(f"Error processing faces: {str(e)}")  # Debug line
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
 
 
 def update_face_name(request):
@@ -346,20 +342,12 @@ def update_face_name(request):
             media_id = data.get('media_id')
             face_location = data.get('face')
             new_name = data.get('new_name').strip()  # Strip whitespace to ensure proper handling
-            face_encoding = data.get('face_encoding')
+            face_hash = data.get('face_hash')
 
-            if not (media_id and face_location and face_encoding):
+            if not (media_id and face_location and face_hash):
                 return JsonResponse({'success': False, 'error': 'Missing required parameters'})
 
-            # Convert the face encoding to bytes if it's provided as a list
-            if isinstance(face_encoding, list):
-                face_encoding_np = np.array(face_encoding, dtype=np.float64)
-                face_encoding_bytes = face_encoding_np.tobytes()
-            else:
-                face_encoding_bytes = face_encoding
-
-            encoding_hash = hashlib.sha256(face_encoding_bytes).hexdigest()
-            unknown_name = f"unknown_{media_id}_{encoding_hash[:8]}"
+            unknown_name = f"unknown_{media_id}_{face_hash[:8]}"
 
             tolerance = 5
 
@@ -400,7 +388,7 @@ def update_face_name(request):
 
             # Update or create the known face to point to the new identity
             known_face, _ = TblKnownFaces.objects.update_or_create(
-                encoding=face_encoding_bytes,
+                encoding_hash=face_hash,  # Use the hash here
                 defaults={'identity': identity}
             )
 
@@ -425,6 +413,7 @@ def update_face_name(request):
             return JsonResponse({'success': False, 'error': str(e)})
 
     return JsonResponse({'success': False, 'error': 'Invalid request method'})
+
 
 
 @csrf_exempt
@@ -470,8 +459,7 @@ def update_face_validity(request):
                 known_face = TblKnownFaces.objects.get(id=face_match.known_face_id)
 
                 # Mark the known face as "unknown" and update the identity
-                face_encoding_bytes = known_face.encoding
-                encoding_hash = hashlib.sha256(face_encoding_bytes).hexdigest()
+                encoding_hash = known_face.encoding_hash  # Use the hash instead of the encoding
                 unknown_name = f"unknown_{media_id}_{encoding_hash[:8]}"
 
                 # Create or get the "unknown" identity
@@ -496,6 +484,7 @@ def update_face_validity(request):
             return JsonResponse({'success': False, 'error': str(e)})
 
     return JsonResponse({'success': False, 'error': 'Invalid request method'})
+
 
 @csrf_exempt
 def manual_face_recognition(request):
