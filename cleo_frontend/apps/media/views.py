@@ -18,6 +18,9 @@ import numpy as np
 import hashlib
 import face_recognition
 import shutil
+import mimetypes
+import zipfile
+from io import BytesIO
 
 def generate_paths(media):
     media.full_path = os.path.join(settings.IMAGE_PATH, media.new_name)
@@ -58,10 +61,14 @@ def gallery(request: HttpRequest) -> HttpResponse:
     order_by_field = allowed_order_by_fields.get(order_by, '-media_create_date')
 
 
+    # Example condition: Superusers can see all images, others can't see 'is_secret' images
     if user.is_superuser:
-        media_files = list(TblMediaObjects.objects.using('media').filter(media_type='image')).order_by(order_by_field)
+        media_files = TblMediaObjects.objects.using('media').filter(media_type='image').order_by(order_by_field)
     else:
-        media_files = list(TblMediaObjects.objects.using('media').filter(media_type='image', is_secret=False)).order_by(order_by_field)
+        media_files = TblMediaObjects.objects.using('media').filter(media_type='image', is_secret=False).order_by(order_by_field)
+    
+    # Convert to list after ordering
+    media_files = list(media_files)
     
     random.shuffle(media_files)
     media_files = media_files[:100]
@@ -173,6 +180,7 @@ def edit_media(request, media_id):
         'media': media,
         'face_matches': face_matches,
         'show_navbar': False,  # Hide the navbar
+        'google_maps_api_key': settings.GOOGLE_MAPS_API_KEY,
     })
 
 def save_rotation(request, media_id):
@@ -198,7 +206,7 @@ def save_rotation(request, media_id):
         return JsonResponse({'status': 'error', 'message': 'Invalid request method'})
 
 def fetch_tags(request, media_id):
-    media_object = get_object_or_404(TblMediaObjects, pk=media_id)
+    media_object = get_object_or_404(TblMediaObjects, media_object_id=media_id)
     assigned_tags = TblTags.objects.filter(tbltagstomedia__media_object=media_object)
     available_tags = TblTags.objects.exclude(tbltagstomedia__media_object=media_object)
 
@@ -233,39 +241,62 @@ def fetch_face_locations(request, media_id):
 
     face_locations = []
     if face_type == 'identified':
-        identified_faces = TblFaceMatches.objects.filter(face_location__media_object=media_object, is_invalid=False).exclude(face_name__startswith='unknown_')
+        identified_faces = TblFaceMatches.objects.filter(
+            face_location__media_object=media_object, is_invalid=False
+        ).exclude(face_name__startswith='unknown_')
+
         for face in identified_faces:
             face_location = face.face_location
+            face_encoding = None
+
+            # Fetch the known face associated with this match
+            if face.known_face_id:
+                known_face = TblKnownFaces.objects.filter(id=face.known_face_id).first()
+                if known_face:
+                    face_encoding = known_face.encoding.tobytes().hex()
+
             face_locations.append({
                 'top': face_location.top,
                 'right': face_location.right,
                 'bottom': face_location.bottom,
                 'left': face_location.left,
                 'name': face.face_name,
-                'is_invalid': face_location.is_invalid  # Include is_invalid flag
+                'is_invalid': face_location.is_invalid,
+                'encoding': face_encoding  # Include encoding if it exists
             })
     else:  # 'all' case
         all_faces = TblFaceLocations.objects.filter(media_object=media_object)
         for face_location in all_faces:
             face_name = None
+            face_encoding = None  # Initialize encoding variable
+
             if face_location.is_invalid:
                 face_name = 'Invalid'
             elif face_location.tblfacematches_set.exists():
                 face_match = face_location.tblfacematches_set.first()
                 face_name = face_match.face_name
+
+                # Fetch the known face associated with this match
+                if face_match.known_face_id:
+                    known_face = TblKnownFaces.objects.filter(id=face_match.known_face_id).first()
+                    if known_face:
+                        face_encoding = known_face.encoding.tobytes().hex()
+
             face_locations.append({
                 'top': face_location.top,
                 'right': face_location.right,
                 'bottom': face_location.bottom,
                 'left': face_location.left,
                 'name': face_name or '',  # If face_name is None, set to empty string
-                'is_invalid': face_location.is_invalid  # Include is_invalid flag
+                'is_invalid': face_location.is_invalid,  # Include is_invalid flag
+                'encoding': face_encoding  # Include encoding in response
             })
 
     return JsonResponse({
         'status': 'success',
         'face_locations': face_locations
     })
+
 
 
 @csrf_exempt
@@ -570,3 +601,41 @@ def delete_image(request, media_id):
             return JsonResponse({'success': False, 'error': str(e)})
 
     return JsonResponse({'success': False, 'error': 'Invalid request method'})
+
+def download_image(request, media_id):
+    media_object = get_object_or_404(TblMediaObjects, media_object_id=media_id)
+    image_path = os.path.join(settings.IMAGE_PATH, media_object.new_name)
+
+    # Set the appropriate content type
+    mime_type, _ = mimetypes.guess_type(image_path)
+    response = HttpResponse(open(image_path, 'rb'), content_type=mime_type)
+    response['Content-Disposition'] = f'attachment; filename="{os.path.basename(image_path)}"'
+    
+    return response
+
+def download_selected_images(request):
+    if request.method == 'POST':
+        image_ids = request.POST.getlist('image_ids')
+        images = TblMediaObjects.objects.filter(media_object_id__in=image_ids)
+
+        # Create a zip file in memory
+        zip_buffer = BytesIO()
+        with zipfile.ZipFile(zip_buffer, 'w') as zip_file:
+            for image in images:
+                image_path = os.path.join(settings.IMAGE_PATH, image.new_name)
+                zip_file.write(image_path, os.path.basename(image_path))
+
+        zip_buffer.seek(0)
+
+        # Send the zip file as a response
+        response = HttpResponse(zip_buffer, content_type='application/zip')
+        response['Content-Disposition'] = 'attachment; filename="selected_images.zip"'
+        
+        return response
+
+def get_location_data(request, media_id):
+    media = get_object_or_404(TblMediaObjects, media_object_id=media_id)
+    return JsonResponse({
+        'latitude': media.latitude,
+        'longitude': media.longitude
+    })

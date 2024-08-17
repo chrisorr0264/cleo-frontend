@@ -41,6 +41,8 @@
     </div> <!-- .site-wrap -->
 
     <!-- Javascript Libraries -->
+    <script src="https://maps.googleapis.com/maps/api/js?key={{ GOOGLE_MAPS_API_KEY }}&callback=initMap" loading="lazy"></script>
+
     <script src="{% static 'js/jquery-3.3.1.min.js' %}"></script>
     <script src="{% static 'js/jquery-migrate-3.0.1.min.js' %}"></script>
     <script src="{% static 'js/jquery-ui.js' %}"></script>
@@ -53,7 +55,8 @@
     <script src="{% static 'js/bootstrap-datepicker.min.js' %}"></script>
     <script src="{% static 'js/aos.js' %}"></script>
     <script src="{% static 'js/jquery.fancybox.min.js' %}"></script>
-    <script src="{% static 'js/main.js' %}"></script>
+    <script src="{% static 'js/utils.js' %}"></script>
+    <script type="module" src="{% static 'js/main.js' %}"></script>
 </body>
 
 </html>

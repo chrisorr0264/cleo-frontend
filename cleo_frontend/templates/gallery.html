@@ -12,45 +12,59 @@
       </div>
     </div>
 
-    <div class="row align-items-stretch">
-      {% for media in page_obj %}
-      <div class={{media.col_class}} data-aos="fade-up">
-        <a href={{media.full_path}} class="d-block photo-item" data-fancybox="gallery" data-media-id="{{ media.media_object_id }}">
-          <img src={{media.thumbnail_path}} alt="Image" class="img-fluid">
-          <div class="photo-text-more">
-            <span class="icon icon-search"></span>
-          </div>
-        </a>
+    <!-- Form to select images and download -->
+    <form method="post" action="{% url 'media:download_selected_images' %}">
+      {% csrf_token %}
+      <div class="row mb-3">
+        <div class="col-12 text-right">
+          <button type="submit" class="btn btn-primary">Download Selected Images</button>
+        </div>
       </div>
-      {% endfor %}
-    </div>
 
-    <!-- Pagination controls -->
-    <div class="row">
-      <div class="col-12">
-        <nav aria-label="Page navigation">
-          <ul class="pagination justify-content-center">
-            {% if page_obj.has_previous %}
-              <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a></li>
-            {% else %}
-              <li class="page-item disabled"><span class="page-link">Previous</span></li>
-            {% endif %}
-            {% for num in page_obj.paginator.page_range %}
-              {% if page_obj.number == num %}
-                <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-              {% else %}
-                <li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
-              {% endif %}
-            {% endfor %}
-            {% if page_obj.has_next %}
-              <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a></li>
-            {% else %}
-              <li class="page-item disabled"><span class="page-link">Next</span></li>
-            {% endif %}
-          </ul>
-        </nav>
+      <div class="row align-items-stretch">
+        {% for media in page_obj %}
+        <div class="{{ media.col_class }}" data-aos="fade-up">
+          <!-- Checkbox for selecting the image -->
+          <input type="checkbox" id="image_{{ media.media_object_id }}" name="image_ids" value="{{ media.media_object_id }}" class="select-checkbox">
+          <label for="image_{{ media.media_object_id }}">
+            <a href="{{ media.full_path }}" class="d-block photo-item" data-fancybox="gallery" data-media-id="{{ media.media_object_id }}">
+              <img src="{{ media.thumbnail_path }}" alt="Image" class="img-fluid">
+              <div class="photo-text-more">
+                <span class="icon icon-search"></span>
+              </div>
+            </a>
+          </label>
+        </div>
+        {% endfor %}
       </div>
-    </div>
+
+      <!-- Pagination controls -->
+      <div class="row">
+        <div class="col-12">
+          <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center">
+              {% if page_obj.has_previous %}
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a></li>
+              {% else %}
+                <li class="page-item disabled"><span class="page-link">Previous</span></li>
+              {% endif %}
+              {% for num in page_obj.paginator.page_range %}
+                {% if page_obj.number == num %}
+                  <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                {% else %}
+                  <li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
+                {% endif %}
+              {% endfor %}
+              {% if page_obj.has_next %}
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a></li>
+              {% else %}
+                <li class="page-item disabled"><span class="page-link">Next</span></li>
+              {% endif %}
+            </ul>
+          </nav>
+        </div>
+      </div>
+    </form>
   </div>
 
 {% endblock %}

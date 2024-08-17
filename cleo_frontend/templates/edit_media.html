@@ -47,7 +47,7 @@
                 </div>
             </div>
             <div class="col-md-12">
-                <div id="map" style="height: 200px; background-color: #f0f0f0;">
+                <div id="map" style="height: 200px; background-color: #f0f0f0;" data-media-id="{{ media.media_object_id }}">
                     <p>Map will be displayed here.</p>
                 </div>
             </div>
@@ -59,7 +59,7 @@
 
             <div class="text-center mb-4">
                 {% if user.is_superuser %}
-                    <form method="POST" action ="{% url 'delete_image' media.media_object_id %}"
+                    <form method="POST" action ="{% url 'media:delete_image' media.media_object_id %}">
                         {% csrf_token %}
                         <button id="delete-button" data-media-id="{{ media.media_object_id }}" class="btn btn-danger mb-4">Delete</button>
                     </form>
@@ -107,19 +107,26 @@
                     </ul>
                 </div>
                 <div class="mb-2">
-                    <button id="toggle-all-faces" class="btn btn-secondary mb-2" onclick="toggleFaceLocations('all')">Show All Faces</button>
-                    <button id="toggle-identified-faces" class="btn btn-secondary mb-2" onclick="toggleFaceLocations('identified')">Show Identified Faces</button>
+                    <button id="toggle-all-faces" class="btn btn-secondary mb-2">Show All Faces</button>
+                    <button id="toggle-identified-faces" class="btn btn-secondary mb-2">Show Identified Faces</button>
                 </div>
-                <button onclick="searchFaces()" class="btn btn-warning mb-2">Search Faces</button>
+                <button id="searchFaces" class="btn btn-warning mb-2">Search Faces</button>
                 <div class="mb-4">
                     <h5>Manual Face Recognition</h5>
-                    <button onclick="enableManualDrawing()" class="btn btn-warning mb-2">Enable Drawing</button>
-                    <button onclick="processManualFaces()" class="btn btn-primary mb-2">Process Drawn Faces</button>
+                    <button id="enableManualDrawing" class="btn btn-warning mb-2">Enable Drawing</button>
+                    <button id="processManualFaces" class="btn btn-primary mb-2">Process Drawn Faces</button>
                 </div>
-                
-
-                
+       
             </div>
+
+            <div class="mb-4">
+                <h5>Download Image</h5>
+                <div>
+                    <!-- Download Functionality -->
+                    <a href="{% url 'media:download_image' media.media_object_id %}" class="btn btn-primary">Download Image</a>
+                </div>
+            </div>
+
 
             <!-- Close Icon Button -->
             <button id="closeButton" data-url="{% url 'media:gallery' %}" class="btn btn-secondary close-button"><i class="fas fa-times"></i></button>
@@ -157,6 +164,9 @@
             </div>
         </div>
     </div>
+
+
+
 
 </div>
 

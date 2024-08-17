@@ -32,9 +32,10 @@ SECRET_KEY = 'django-insecure-!zfi%$=^j2pm3h6utxsfu_vsx-51j%3ycn&t-^0!z=apas1@^y
 DEBUG = True
 
 ALLOWED_HOSTS = [
+    'photos.tranquilcs.com',
     '192.168.80.208',
-     'localhost',
-      '127.0.0.1'
+    'localhost',
+    '127.0.0.1'
     ]
 
 
@@ -77,6 +78,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'utils.context_processors.google_maps_api_key',
             ],
         },
     },
@@ -97,6 +99,7 @@ DATABASES = {
         'HOST': env('DJANGO_DB_HOST'),
         'PORT': env('DJANGO_DB_PORT'),
     },
+
     'media': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': env('MEDIA_DB_NAME'),
@@ -142,7 +145,13 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
 
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'cleo_frontend/static'),
+]
+
+
 STATIC_URL = 'static/'
+STATIC_ROOT = '/var/www/cleo/staticfiles'
 
 # Path to full images
 IMAGE_PATH = '/mnt/MOM/Images'
@@ -160,3 +169,5 @@ LOGIN_URL = 'account:login'
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+GOOGLE_MAPS_API_KEY = 'AIzaSyC9btRLxcCgL9hHpW4O06sYF7GX4BHWrz4'

@@ -19,4 +19,7 @@ urlpatterns = [
     path('manage_tag/', views.manage_tag, name='manage_tag'),
     path('delete_tag/<int:tag_id>/', views.delete_tag, name='delete_tag'),
     path('delete_image/<int:media_id>/', views.delete_image, name='delete_image'),
+    path('download/<int:media_id>/', views.download_image, name='download_image'),
+    path('download-selected/', views.download_selected_images, name='download_selected_images'),
+    path('get-location-data/<int:media_id>/', views.get_location_data, name='get_location_data'),
 ]
