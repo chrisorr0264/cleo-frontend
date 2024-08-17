@@ -8,7 +8,7 @@ console.log("main.js loaded");
 import {initAOS} from './aosInit.js';
 import {siteMenuClone} from './menu.js';
 import {fetchAndUpdateTags, updateTags, moveAllLeft, moveOneLeft, moveAllRight, moveOneRight, resetTags} from './tags.js';
-import {toggleFaceLocations, searchFaces, updateFaceName, updateFaceValidity, markFaceAsInvalid, triggerManualFaceRecognition, drawRectangle, finishDrawing, enableManualDrawing, disableDrawing, removeDrawnBoxes, processManualFaces, sendManualFaceData} from './faces.js';
+import {toggleFaceLocations, searchFaces, updateFaceName, updateFaceValidity, markFaceAsInvalid, triggerManualFaceRecognition, enableManualDrawing, disableDrawing, removeDrawnBoxes, processManualFaces, sendManualFaceData} from './faces.js';
 import { initMap } from './map.js';
 import { initImageRotation } from './imageRotation.js';
 import { initTagManagement } from './tagManagement.js';

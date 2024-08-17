@@ -22,6 +22,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 env = environ.Env()
 environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
+
+print("DJANGO_SECRET_KEY:", env('DJANGO_SECRET_KEY'))
+print("DJANGO_DEBUG:", env('DJANGO_DEBUG'))
+print("ALLOWED_HOSTS:", env.list('DJANGO_ALLOWED_HOSTS'))
+print("GOOGLE_MAPS_API_KEY:", env('GOOGLE_MAPS_API_KEY'))
+
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 

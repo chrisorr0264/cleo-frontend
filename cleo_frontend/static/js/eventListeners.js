@@ -6,7 +6,7 @@ console.log("eventListeners.js loaded");
 
 // Import fetchAndUpdateTags from tags.js
 import { fetchAndUpdateTags } from './tags.js';
-import { toggleFaceLocations } from './faces.js';
+import { toggleFaceLocations, enableManualDrawing, processManualFaces } from './faces.js';
 
 export function bindEventListeners() {
 
@@ -60,7 +60,7 @@ export function bindEventListeners() {
         }
 
         // Event listener for processing drawn faces
-        const processDrawnFacesButton = document.getElementById('process-drawn-faces');
+        const processDrawnFacesButton = document.getElementById('process-manual-faces');
         if (processDrawnFacesButton) {
             processDrawnFacesButton.addEventListener('click', function() {
                 processManualFaces();

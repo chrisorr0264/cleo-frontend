@@ -6,6 +6,7 @@ console.log("face.js loaded");
 
 // 
 import { fetchAndUpdateTags } from "./tags.js";
+
 // Function to show face boxes when button pressed
 export function toggleFaceLocations(type) {
     try {
@@ -363,14 +364,16 @@ export function triggerManualFaceRecognition() {
     .then(response => response.json())
     .then(data => {
         // Handle the response data
+        console.log('Manual face recognition triggered successfully:', data);
     })
-    .catch(error => console.error('Error:', error));
-    }
+    .catch(error => console.error('Error triggering manual face recognition:', error));
+}
 
-    let drawnFaces = [];
-    let startX, startY, rect;
+let drawnFaces = [];
+let startX, startY, rect;
 
-    function startDrawing(e) {
+// Function to start drawing a rectangle
+function startDrawing(e) {
     const imageContainer = document.getElementById('image-container');
     const rectBounds = imageContainer.getBoundingClientRect();
     startX = e.clientX - rectBounds.left;
@@ -387,8 +390,8 @@ export function triggerManualFaceRecognition() {
     imageContainer.appendChild(rect);
 }
 
-// Function to draw a rectangle around faces
-export function drawRectangle(e) {
+// Function to draw a rectangle as the mouse moves
+function drawRectangle(e) {
     if (!rect) return;
 
     const imageContainer = document.getElementById('image-container');
@@ -410,8 +413,8 @@ export function drawRectangle(e) {
     }
 }
 
-// Function to finish drawing and disable drawing tools
-export function finishDrawing() {
+// Function to finish drawing and save the coordinates
+function finishDrawing() {
     if (!rect) return;
 
     const imageContainer = document.getElementById('image-container');
@@ -429,8 +432,9 @@ export function finishDrawing() {
     rect = null; // Clear the current rectangle
 }
 
-// Function to enable manaual drawing
+// Function to enable manual drawing
 export function enableManualDrawing() {
+    console.log('Enabling manual drawing');
     const imageContainer = document.getElementById('image-container');
     imageContainer.addEventListener('mousedown', startDrawing);
     imageContainer.addEventListener('mousemove', drawRectangle);
@@ -467,6 +471,7 @@ export function processManualFaces() {
     disableDrawing();
     removeDrawnBoxes();
 
+    // Refresh faces after manual processing
     searchFaces();
 }
 
