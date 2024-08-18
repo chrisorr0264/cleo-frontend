@@ -5,8 +5,8 @@
 console.log("eventListeners.js loaded");
 
 // Import fetchAndUpdateTags from tags.js
-import { fetchAndUpdateTags } from './tags.js';
-import { toggleFaceLocations, enableManualDrawing, processManualFaces } from './faces.js';
+import { fetchAndUpdateTags, moveAllRight,moveOneRight, moveAllLeft, moveOneLeft, updateTags, resetTags } from './tags.js';
+import { toggleFaceLocations, enableManualDrawing, processManualFaces, clearFaceBoxes, searchFaces } from './faces.js';
 
 export function bindEventListeners() {
 
@@ -25,6 +25,55 @@ export function bindEventListeners() {
             closeButton.addEventListener('click', goBack);
         } else {
             console.error("Close button not found");
+        }
+
+        // Event listener for moving all tags to the right
+        const moveAllRightButton = document.getElementById('moveAllRightBtn');
+        if (moveAllRightButton) {
+            moveAllRightButton.addEventListener('click', function () {
+                moveAllRight(mediaId);
+            });
+        }
+
+        // Event listener for moving one tag to the right
+        const moveOneRightButton = document.getElementById('moveOneRightBtn');
+        
+        if (moveOneRightButton) {
+            moveOneRightButton.addEventListener('click', function () {
+                moveOneRight(mediaId);
+            });
+        }
+
+        // Event listener for moving all tags to the left
+        const moveAllLeftButton = document.getElementById('moveAllLeftBtn');
+        if (moveAllLeftButton) {
+            moveAllLeftButton.addEventListener('click', function () {
+                moveAllLeft(mediaId);
+            });
+        }
+
+        // Event listener for moving one tag to the left
+        const moveOneLeftButton = document.getElementById('moveOneLeftBtn');
+        if (moveOneLeftButton) {
+            moveOneLeftButton.addEventListener('click', function () {
+                moveOneLeft(mediaId);
+            });
+        }
+
+        // Event listener for updating tags
+        const updateTagsButton = document.getElementById('updateTagsBtn');
+        if (updateTagsButton) {
+            updateTagsButton.addEventListener('click', function () {
+                updateTags();
+            });
+        }
+
+        // Event listener for moving all tags to the right
+        const resetTagsButton = document.getElementById('resetTagsBtn');
+        if (resetTagsButton) {
+            resetTagsButton.addEventListener('click', function () {
+                resetTags();
+            });
         }
 
         // Event listener for showing all faces
@@ -48,6 +97,14 @@ export function bindEventListeners() {
         if (searchFacesButton) {
             searchFacesButton.addEventListener('click', function() {
                 searchFaces();
+            });
+        }
+
+        // Event listener for clearing face boxes
+        const clearFaceBoxesButton = document.getElementById('clear-face-boxes');
+        if (clearFaceBoxesButton) {
+            clearFaceBoxesButton.addEventListener('click', function() {
+                clearFaceBoxes();
             });
         }
 
@@ -123,6 +180,6 @@ export function listenForTagModalClose() {
     $('#manageTagsModal').on('hidden.bs.modal', function () {
         // Trigger the refresh of the tags list
         const mediaId = document.querySelector('img[data-media-id]').getAttribute('data-media-id');
-        fetchandUpdateTags(mediaId);  
+        fetchAndUpdateTags(mediaId);  
     });
 }

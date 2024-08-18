@@ -139,7 +139,7 @@ def photo_search(request: HttpRequest) -> HttpResponse:
         names = [name for name in names if name]
         if names:
             for name in names:
-                media_files = media_files.filter(tblfacematches__face_name=name)
+                media_files = media_files.filter(tblfacelocations__tblfacematches__face_name=name)
             title_parts.append(f"Names: {', '.join(names)}")
 
     media_files = media_files.order_by('media_object_id')

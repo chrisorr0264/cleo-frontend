@@ -29,17 +29,22 @@ export function initMap() {
 
             const map = new google.maps.Map(mapElement, {
                 zoom: zoomLevel,
-                center: location
+                center: location,
+                mapId: "6673aa6547bec883"  // Replace with your actual Map ID
             });
+
+            console.log(location);
+            console.log(typeof map);
 
             // Only add the marker if there's a valid location
             if (!isNaN(lat) && !isNaN(lng)) {
-                new google.maps.marker.AdvancedMarkerElement({
-                    map: map,
+                const marker = new google.maps.marker.AdvancedMarkerElement({
+                    map,
                     position: location,
-                    title: "Location"
+                    title: "Location",
                 });
             }
         })
         .catch(error => console.error("Error fetching location data:", error));
 }
+

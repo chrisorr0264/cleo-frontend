@@ -520,3 +520,19 @@ export function sendManualFaceData(faceCoordinates, mediaId) {
     })
     .catch(error => console.error('Error sending manual face data:', error));
 }
+
+// Function to remove all face boxes
+export function clearFaceBoxes() {
+    // Select all elements with the class 'face-rect'
+    const faceBoxes = document.querySelectorAll('.face-rect');
+    faceBoxes.forEach(box => box.remove());
+
+    // Optionally, clear any associated labels or checkboxes if they have a common class
+    const faceLabels = document.querySelectorAll('.face-name-input');
+    faceLabels.forEach(label => label.remove());
+
+    const invalidCheckboxes = document.querySelectorAll('input[type="checkbox"]');
+    invalidCheckboxes.forEach(checkbox => checkbox.remove());
+
+    console.log('All face boxes cleared.');
+}

@@ -15,6 +15,10 @@ export function fetchAndUpdateTags(mediaId) {
             assignedTags.innerHTML = '';
             availableTags.innerHTML = '';
 
+            // Sort the assigned tags alphabetically by name
+            data.assigned_tags.sort((a, b) => a.name.localeCompare(b.name));
+
+            // Append the sorted assigned tags to the DOM
             data.assigned_tags.forEach(tag => {
                 const option = document.createElement('option');
                 option.value = tag.id;
@@ -22,6 +26,10 @@ export function fetchAndUpdateTags(mediaId) {
                 assignedTags.appendChild(option);
             });
 
+            // Sort the available tags alphabetically by name
+            data.available_tags.sort((a, b) => a.name.localeCompare(b.name));
+
+            // Append the sorted available tags to the DOM
             data.available_tags.forEach(tag => {
                 const option = document.createElement('option');
                 option.value = tag.id;
@@ -51,7 +59,7 @@ export function updateTags() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert('Tags updated successfully!');
+            fetchAndUpdateTags(mediaId);
         } else {
             alert('Failed to update tags.');
         }
@@ -59,7 +67,7 @@ export function updateTags() {
 }
 
 // Helper function to move all tags to the left (assigned)
-export function moveAllLeft() {
+export function moveAllLeft(mediaId) {
 
     const availableTags = document.getElementById('available-tags');
     const assignedTags = document.getElementById('assigned-tags');
@@ -67,10 +75,13 @@ export function moveAllLeft() {
     while (availableTags.options.length > 0) {
         assignedTags.appendChild(availableTags.options[0]);
     }
+
+    // Call updateTags to refresh lists
+    updateTags();
 }
 
 // Helper function to move selected tags to the left (assigned)
-export function moveOneLeft() {
+export function moveOneLeft(mediaId) {
 
     const availableTags = document.getElementById('available-tags');
     const assignedTags = document.getElementById('assigned-tags');
@@ -79,10 +90,13 @@ export function moveOneLeft() {
     selectedOptions.forEach(option => {
         assignedTags.appendChild(option);
     });
+
+    // Call updateTags to refresh lists
+    updateTags();
 }
  
 // Helper function to move all tags to the right (available)
-export function moveAllRight() {
+export function moveAllRight(mediaId) {
 
     const availableTags = document.getElementById('available-tags');
     const assignedTags = document.getElementById('assigned-tags');
@@ -90,10 +104,13 @@ export function moveAllRight() {
     while (assignedTags.options.length > 0) {
         availableTags.appendChild(assignedTags.options[0]);
     }
+
+    // Call updateTags to refresh lists
+    updateTags();
 }
 
 // Helper function to move selected tags to the right (available)
-export function moveOneRight() {
+export function moveOneRight(mediaId) {
 
     const availableTags = document.getElementById('available-tags');
     const assignedTags = document.getElementById('assigned-tags');
@@ -102,6 +119,9 @@ export function moveOneRight() {
     selectedOptions.forEach(option => {
         availableTags.appendChild(option);
     });
+
+    // Call updateTags to refresh lists
+    updateTags();
 }
 
 // Function to reset all tags by reloading the database tags

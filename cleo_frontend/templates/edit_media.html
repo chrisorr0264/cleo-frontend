@@ -76,10 +76,10 @@
                         </select>
                     </div>
                     <div class="col-2 text-center d-flex flex-column justify-content-center align-items-center">
-                        <button onclick="moveAllLeft()" class="btn btn-secondary mb-2"><i class="fas fa-angle-double-left"></i></button>
-                        <button onclick="moveOneLeft()" class="btn btn-secondary mb-2"><i class="fas fa-angle-left"></i></button>
-                        <button onclick="moveOneRight()" class="btn btn-secondary mb-2"><i class="fas fa-angle-right"></i></button>
-                        <button onclick="moveAllRight()" class="btn btn-secondary mb-2"><i class="fas fa-angle-double-right"></i></button>
+                        <button id="moveAllLeftBtn" class="btn btn-secondary mb-2"><i class="fas fa-angle-double-left"></i></button>
+                        <button id="moveOneLeftBtn" class="btn btn-secondary mb-2"><i class="fas fa-angle-left"></i></button>
+                        <button id="moveOneRightBtn" class="btn btn-secondary mb-2"><i class="fas fa-angle-right"></i></button>
+                        <button id="moveAllRightBtn" class="btn btn-secondary mb-2"><i class="fas fa-angle-double-right"></i></button>
                     </div>
                     <div class="col-5">
                         <h6>Available Tags</h6>
@@ -89,8 +89,10 @@
                     </div>
                 </div>
                 <div class="mt-4 text-center">
-                    <button onclick="updateTags()" class="btn btn-primary mb-2">Update Tags</button>
-                    <button onclick="resetTags()" class="btn btn-secondary mb-2">Reset</button>
+                    <!--
+                    <button id="updateTagsBtn" class="btn btn-primary mb-2">Update Tags</button>
+                    <button id="resetTagsBtn" class="btn btn-secondary mb-2">Reset</button>
+                    -->
                     <button id="manageTagsButton" class="btn but-warning mb-2">Manage Tags</button>
 
                 </div>
@@ -110,7 +112,8 @@
                     <button id="toggle-all-faces" class="btn btn-secondary mb-2">Show All Faces</button>
                     <button id="toggle-identified-faces" class="btn btn-secondary mb-2">Show Identified Faces</button>
                 </div>
-                <button id="searchFaces" class="btn btn-warning mb-2">Search Faces</button>
+                <button id="search-faces" class="btn btn-warning mb-2">Search Faces</button>
+                <button id="clear-face-boxes" class="btn btn-danger mb-2">Clear Face Boxes</button>
                 <div class="mb-4">
                     <h5>Manual Face Recognition</h5>
                     <button id="enable-manual-drawing" class="btn btn-warning mb-2">Enable Drawing</button>
