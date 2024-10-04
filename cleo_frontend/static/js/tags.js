@@ -45,14 +45,14 @@ export function updateTags() {
     const assignedTags = Array.from(document.getElementById('assigned-tags').options).map(option => option.value);
     const mediaId = document.querySelector('img[data-media-id]').getAttribute('data-media-id');
 
-    fetch('/media/update-tags/', {
+    fetch(`/media/update_tags/${mediaId}/`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
         },
         body: JSON.stringify({
-            media_object_id: mediaId,
+            media_id: mediaId,
             assigned_tags: assignedTags
         })
     })

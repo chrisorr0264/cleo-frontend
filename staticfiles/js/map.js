@@ -24,7 +24,7 @@ export function initMap() {
                 zoomLevel = 4; // Zoom out to show all of Canada
             } else {
                 location = { lat: lat, lng: lng };
-                zoomLevel = 8; // Default zoom level for specific location
+                zoomLevel = 10; // Default zoom level for specific location
             }
 
             const map = new google.maps.Map(mapElement, {
@@ -32,9 +32,6 @@ export function initMap() {
                 center: location,
                 mapId: "6673aa6547bec883"  // Replace with your actual Map ID
             });
-
-            console.log(location);
-            console.log(typeof map);
 
             // Only add the marker if there's a valid location
             if (!isNaN(lat) && !isNaN(lng)) {

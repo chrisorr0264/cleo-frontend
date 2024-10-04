@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Duplicate Image Search</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .duplicate-group {
+            margin-bottom: 30px;
+        }
+        .image-group {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center; /* Center images horizontally */
+        }
+        .image-item {
+            margin: 15px;
+            border: 1px solid #ddd;
+            padding: 15px;
+            text-align: center;
+            max-width: 300px; /* Ensure the container doesn't get too wide */
+        }
+        .image-item img {
+            max-width: 100%; /* Make image responsive */
+            height: auto;
+        }
+        .navigation {
+            margin-top: 20px;
+            text-align: center;
+        }
+        .navigation button {
+            padding: 10px 20px;
+            margin: 0 10px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+<div id="duplicate-group-container">
+    <!-- Group content will be loaded here dynamically -->
+</div>
+
+<div class="navigation">
+    <button id="back-btn" disabled>Back</button>
+    <span id="counter">1 / {{ total_groups }}</span>
+    <button id="next-btn">Next</button>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        let currentGroup = 0;
+        const totalGroups = parseInt("{{ total_groups|default:'0' }}", 10);
+
+        function updateGroupVisibility() {
+            console.log(`Updating visibility for group: ${currentGroup + 1}`);
+            fetch(`/media/duplicate_search/group/${currentGroup}/`)
+                .then(response => response.json())
+                .then(data => {
+                    const groupContainer = document.getElementById('duplicate-group-container');
+                    groupContainer.innerHTML = ''; // Clear previous group
+
+                    if (data.group && data.group.length > 0) {
+                        const groupDiv = document.createElement('div');
+                        groupDiv.classList.add('duplicate-group');
+                        groupDiv.innerHTML = `<h3>Group ${data.group_number} of ${data.total_groups}</h3>`;
+                        
+                        const imageGroupDiv = document.createElement('div');
+                        imageGroupDiv.classList.add('image-group');
+                        
+                        data.group.forEach(image => {
+                            const imageItemDiv = document.createElement('div');
+                            imageItemDiv.classList.add('image-item');
+                            imageItemDiv.id = `image-${image.id}`;
+                            imageItemDiv.innerHTML = `
+                                <img src="{{ IMAGE_PATH }}/${image.name}" alt="${image.name}">
+                                <p>Name: ${image.name}</p>
+                                <p>Size: ${image.size} bytes</p>
+                                <p>EXIF Data: ${image.exif_present ? 'Present' : 'Not Present'}</p>
+                                <button class="delete-btn" data-image-id="${image.id}">Delete</button>
+                            `;
+                            imageGroupDiv.appendChild(imageItemDiv);
+                        });
+                        
+                        groupDiv.appendChild(imageGroupDiv);
+                        groupContainer.appendChild(groupDiv);
+                        
+                        document.getElementById('counter').textContent = `${data.group_number} / ${data.total_groups}`;
+                        document.getElementById('back-btn').disabled = currentGroup === 0;
+                        document.getElementById('next-btn').disabled = currentGroup >= totalGroups - 1;
+                        
+                        // Reattach delete event listeners
+                        document.querySelectorAll('.delete-btn').forEach(button => {
+                            button.addEventListener('click', function() {
+                                const imageId = this.dataset.imageId;
+                                fetch(`/media/delete_image/${imageId}/`, {
+                                    method: 'POST',
+                                    headers: {
+                                        'X-CSRFToken': '{{ csrf_token }}',
+                                    },
+                                }).then(response => {
+                                    if (response.ok) {
+                                        document.getElementById(`image-${imageId}`).remove();
+                                    } else {
+                                        alert('Failed to delete image.');
+                                    }
+                                });
+                            });
+                        });
+                    } else {
+                        console.error(`Group element with ID group-${currentGroup + 1} not found.`);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading group:', error);
+                });
+        }
+
+        document.getElementById('back-btn').addEventListener('click', function() {
+            if (currentGroup > 0) {
+                currentGroup--;
+                updateGroupVisibility();
+            }
+        });
+
+        document.getElementById('next-btn').addEventListener('click', function() {
+            if (currentGroup < totalGroups - 1) {
+                currentGroup++;
+                updateGroupVisibility();
+            }
+        });
+
+        // Load the first group initially
+        updateGroupVisibility();
+    });
+</script>
+
+</body>
+</html>

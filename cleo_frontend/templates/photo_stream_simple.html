@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Photo Stream - Full Width</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- jQuery (Required by Fancybox) -->
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+
+    <!-- Fancybox CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/fancybox/3.5.7/jquery.fancybox.min.css" />
+
+    <!-- Fancybox JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fancybox/3.5.7/jquery.fancybox.min.js"></script>
+
+    <style>
+        html, body {
+            width: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container-fluid {
+            width: 100% !important;
+            max-width: 100% !important;
+            padding: 10px !important;
+            margin: 0 !important;
+            border: 2px solid red;
+        }
+
+        .photo-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%; /* Full screen width */
+            padding: 0;
+        }
+
+        .photo-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            width: 100%; /* Use full screen width */
+            max-width: 100%; /* Ensure the items are responsive */
+            justify-content: flex-start;
+            padding: 10px;
+
+            border: 2px solid blue;
+        }
+
+        .photo-item img {
+            flex: 0 0 300px;
+            height: auto;
+            margin-right: 20px; /* Minimal margin between image and details */
+        }
+
+        .photo-details {
+            flex: 1;
+            text-align: left;
+            max-width: 400px; /* Limit the details width */
+        }
+
+        .photo-details p {
+            margin: 0 0 5px;
+        }
+
+        .copy-btn {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container-fluid"> <!-- Use full width -->
+        <div class="photo-container">
+            {% for media in page_obj %}
+                <div class="photo-item">
+                    <!-- Link the thumbnail to the full image -->
+                    <a href="{{ media.full_path }}" data-fancybox="gallery" data-caption="{{ media.new_name }}">
+                        <img src="{{ media.thumbnail_path }}" alt="Thumbnail" class="img-fluid" loading="lazy">
+                    </a>
+                    <div class="photo-details">
+                        <!-- Image Name with Size -->
+                        <p><strong>{{ media.new_name }}</strong> ({{ media.size_human_readable }})</p>
+
+                        <!-- Copy Button -->
+                        <button class="btn btn-primary btn-sm copy-btn" data-media-id="{{ media.media_object_id }}">Copy</button>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            attachCopyButtonListeners();
+
+            let currentPage = 1;
+            let isLoading = false;
+
+            // Debounced scroll event listener
+            window.addEventListener('scroll', debounce(() => {
+                if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 500 && !isLoading) {
+                    loadMorePhotos();
+                }
+            }, 200)); // 200ms debounce
+
+            // Function to load more photos (with batch appending to DOM)
+            function loadMorePhotos() {
+                if (isLoading) return;
+
+                isLoading = true;
+                currentPage += 1;
+
+                fetch(`?page=${currentPage}`)
+                    .then(response => response.text())
+                    .then(data => {
+                        const parser = new DOMParser();
+                        const newDocument = parser.parseFromString(data, 'text/html');
+                        const newPhotos = newDocument.querySelectorAll('.photo-item');
+
+                        if (newPhotos.length > 0) {
+                            const photoContainer = document.querySelector('.photo-container');
+                            const fragment = document.createDocumentFragment();
+
+                            newPhotos.forEach(photo => {
+                                fragment.appendChild(photo);
+                            });
+
+                            photoContainer.appendChild(fragment);  // Append all new items in one go
+                            attachCopyButtonListeners(); // Re-attach listeners to new elements
+                        } else {
+                            console.warn('No more photos to load.');
+                        }
+
+                        isLoading = false;
+                    })
+                    .catch(error => {
+                        console.error('Error loading more photos:', error);
+                        isLoading = false;
+                    });
+            }
+
+            function attachCopyButtonListeners() {
+                document.querySelectorAll('.copy-btn').forEach(button => {
+                    button.addEventListener('click', function() {
+                        const mediaId = this.dataset.mediaId;
+
+                        fetch(`/media/copy_image/${mediaId}/`, {
+                            method: 'GET',
+                            headers: {
+                                'X-CSRFToken': '{{ csrf_token }}',  // Include CSRF token if required for GET requests in your setup
+                            }
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                console.log('Image copied successfully.');
+                            } else {
+                                alert('Error copying image: ' + data.error);
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            alert('An error occurred while copying the image.');
+                        });
+                    });
+                });
+            }
+
+            // Debounce function to limit the rate at which a function can fire
+            function debounce(func, wait) {
+                let timeout;
+                return function(...args) {
+                    const later = () => {
+                        clearTimeout(timeout);
+                        func(...args);
+                    };
+                    clearTimeout(timeout);
+                    timeout = setTimeout(later, wait);
+                };
+            }
+        });
+    </script>
+
+</body>
+</html>

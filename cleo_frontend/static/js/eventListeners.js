@@ -16,6 +16,75 @@ export function bindEventListeners() {
     if (editMediaIdentifier) {
         
         const mediaId = document.querySelector('img[data-media-id]').getAttribute('data-media-id');
+        const csrftoken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+
+        // Event listener to control the editability of the date on the edit photo page.
+        const lockIcon = document.getElementById('lock-icon');
+        const dateDisplay = document.getElementById('date-display');
+        const dateEdit = document.getElementById('date-edit');
+        const yearInput = document.getElementById('year-input');
+        const monthInput = document.getElementById('month-input');
+        const dayInput = document.getElementById('day-input');
+        const dateLockToggle = document.getElementById('date-lock-toggle');
+
+        if (dateLockToggle) {
+            dateLockToggle.addEventListener('click', function() {
+                if (lockIcon.classList.contains('fa-lock')) {
+                    // Unlock the field
+                    lockIcon.classList.remove('fa-lock');
+                    lockIcon.classList.add('fa-unlock');
+                    dateDisplay.style.display = 'none';
+                    dateEdit.style.display = 'inline';
+                    yearInput.focus();
+                } else {
+                    // Lock the field
+                    lockIcon.classList.remove('fa-unlock');
+                    lockIcon.classList.add('fa-lock');
+                    dateDisplay.style.display = 'inline';
+                    dateEdit.style.display = 'none';
+
+                    // Construct the partial date
+                    const year = yearInput.value || "";
+                    const month = monthInput.value ? monthInput.value.padStart(2, '0') : "";
+                    const day = dayInput.value ? dayInput.value.padStart(2, '0') : "";
+
+                    let partialDate = year;
+                    if (month) partialDate += `-${month}`;
+                    if (day) partialDate += `-${day}`;
+
+                    dateDisplay.textContent = partialDate || "Unknown";
+
+                    console.log('Media ID: ', mediaId);
+                    console.log('Partial Date: ', partialDate);
+                    
+                    fetch(`/media/update_date/`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrftoken,
+                        },
+                        body: JSON.stringify({
+                            media_id: mediaId,
+                            media_create_date: partialDate
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if(data.success) {
+                            console.log('Date updated successfully');
+                        } else {
+                            console.error('Failed to update date');
+                            alert('Failed to update the date. Please try again.');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('An error occurred while updating the date. Please try again.');
+                    });
+                }
+            });
+        }
 
         fetchAndUpdateTags(mediaId);
 
@@ -161,6 +230,34 @@ export function bindEventListeners() {
                 }
             });
         }
+
+        // Event listener to bind the toggle switch to update the is_secret field
+        const isSecretButton = document.getElementById('toggleSecret');
+        if (isSecretButton) {
+            isSecretButton.addEventListener('change', function() {  // Use 'change' instead of 'click'
+                const isSecret = this.checked;
+                const mediaId = this.getAttribute('data-media-id');
+                
+                fetch(`/media/update_is_secret/${mediaId}/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}',
+                    },
+                    body: JSON.stringify({ 'is_secret': isSecret })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if(data.success) {
+                        console.log('is_secret updated successfully');
+                    } else {
+                        console.error('Failed to update is_secret');
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+            });
+        }
+
 
         // Event listener for the tag modal close event
         listenForTagModalClose();

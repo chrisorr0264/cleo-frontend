@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 from pathlib import Path
 import os
 import environ
+import logging
 
 
 
@@ -23,12 +24,6 @@ env = environ.Env()
 environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
 
-print("DJANGO_SECRET_KEY:", env('DJANGO_SECRET_KEY'))
-print("DJANGO_DEBUG:", env('DJANGO_DEBUG'))
-print("ALLOWED_HOSTS:", env.list('DJANGO_ALLOWED_HOSTS'))
-print("GOOGLE_MAPS_API_KEY:", env('GOOGLE_MAPS_API_KEY'))
-
-
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
@@ -36,7 +31,8 @@ print("GOOGLE_MAPS_API_KEY:", env('GOOGLE_MAPS_API_KEY'))
 SECRET_KEY = env('DJANGO_SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = env.bool('DJANGO_DEBUG', default=True)
+#DEBUG = env.bool('DJANGO_DEBUG', default=True)
+DEBUG = True
 
 ALLOWED_HOSTS = env.list('DJANGO_ALLOWED_HOSTS', default=['localhost', '127.0.0.1'])
 
@@ -135,6 +131,9 @@ STATIC_ROOT = '/var/www/cleo/staticfiles'
 # Path to full images
 IMAGE_PATH = '/mnt/MOM/Images'
 
+# Path to full images
+VIDEO_PATH = '/mnt/MOM/Movies'
+
 # Path to thumbnails
 THUMBNAIL_PATH = '/mnt/MOM/Images/thumbnails'
 
@@ -149,3 +148,32 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Google Maps API Key
 GOOGLE_MAPS_API_KEY = env('GOOGLE_MAPS_API_KEY')
+
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+        'file': {
+            'level': 'DEBUG',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR, 'django_debug.log'),
+            'mode': 'w',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console', 'file'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+        'django.request': {
+            'handlers': ['file'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+    },
+}

@@ -1,4 +1,6 @@
 from django.db import models
+import os
+from django.conf import settings
 
 
 class TblMediaObjects(models.Model):
@@ -26,6 +28,21 @@ class TblMediaObjects(models.Model):
     longitude = models.FloatField(blank=True, null=True)
     width = models.IntegerField(blank=True, null=True)
     height = models.IntegerField(blank=True, null=True)
+
+    @property
+    def size_human_readable(self):
+        try:
+            file_path = os.path.join(settings.IMAGE_PATH, self.new_name)
+            size = os.path.getsize(file_path)
+            for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+                if size < 1024:
+                    return f"{size:.2f} {unit}"
+                size /= 1024
+            return f"{size:.2f} TB"
+        except FileNotFoundError:
+            return "File not found"
+        except Exception as e:
+            return f"Error: {str(e)}"
 
     class Meta:
         managed = False

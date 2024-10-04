@@ -5,7 +5,9 @@ from django.http import JsonResponse, HttpRequest, HttpResponse
 from .models import TblMediaObjects, TblTags, TblTagsToMedia, TblFaceLocations, TblFaceMatches, TblKnownFaces, TblIdentities
 from ..account.models import GallerySettings
 from django.conf import settings
-from django.db.models import Q
+from django.db import transaction
+from django.db.models import Q, F, Value
+from django.db.models.functions import Coalesce
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required
@@ -13,7 +15,8 @@ from PIL import Image
 import os
 import random
 import json
-from ...utils.facelabeler import FaceLabeler 
+from ...utils.facelabeler import FaceLabeler
+from ...utils.custom_paginator import CustomPaginator 
 import numpy as np
 import hashlib
 import face_recognition
@@ -21,12 +24,21 @@ import shutil
 import mimetypes
 import zipfile
 from io import BytesIO
+import logging
+from datetime import datetime
+from django.core.serializers.json import DjangoJSONEncoder
+from PIL import Image, ExifTags
+
+logger = logging.getLogger('django')
 
 def generate_paths(media):
     media.full_path = os.path.join(settings.IMAGE_PATH, media.new_name)
     media.thumbnail_path = os.path.join(settings.THUMBNAIL_PATH, media.new_name)
     media.media_object_id = media.media_object_id
     width, height = media.width, media.height
+    media.size_raw = os.path.getsize(media.full_path)
+
+    media.size = convert_size(media.size_raw)
 
     if width and height and height != 0:
         media.aspect_ratio = width / height
@@ -43,9 +55,20 @@ def generate_paths(media):
     else:
         media.col_class = 'col-lg-3 col-md-6'
 
+def convert_size(size):
+    """Converts size in bytes to a more readable format."""
+    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+        if size < 1024:
+            return f"{size:.2f} {unit}"
+        size /= 1024
+
 @login_required
 def gallery(request: HttpRequest) -> HttpResponse:
     user = request.user
+    
+    user_display = request.user.get_full_name() if request.user.get_full_name() else request.user.username
+    if request.user.is_superuser:
+        user_display += " (superuser)"
 
     gallery_settings = GallerySettings.objects.first()
     if gallery_settings:
@@ -55,96 +78,129 @@ def gallery(request: HttpRequest) -> HttpResponse:
     
     # Map the order_by value to the actual field names
     allowed_order_by_fields = {
-        'date_asc': 'media_create_date',
-        'date_desc': '-media_create_date',
+        'date_asc': Coalesce(F('media_create_date'), Value('9999-12-31')),
+        'date_desc': Coalesce(F('media_create_date'), Value('0001-01-01')).desc(),
     }
+
     order_by_field = allowed_order_by_fields.get(order_by, '-media_create_date')
 
-
-    # Example condition: Superusers can see all images, others can't see 'is_secret' images
+    # Apply the sorting with the handling for null values
     if user.is_superuser:
-        media_files = TblMediaObjects.objects.using('media').filter(media_type='image').order_by(order_by_field)
+        media_files = TblMediaObjects.objects.using('media').filter(
+            media_type='image',
+            is_active=True
+        ).order_by(order_by_field)
     else:
-        media_files = TblMediaObjects.objects.using('media').filter(media_type='image', is_secret=False).order_by(order_by_field)
-    
+        media_files = TblMediaObjects.objects.using('media').filter(
+            media_type='image',
+            is_active=True,
+            is_secret=False
+        ).order_by(order_by_field)
+
+
+
+    # Total number of images
+    total_images = media_files.count()
+
     # Convert to list after ordering
     media_files = list(media_files)
     
-    random.shuffle(media_files)
-    media_files = media_files[:100]
-
-    # Pagination
-    paginator = Paginator(media_files, 20)  # Show 20 images per page
+    # Use the CustomPaginator
+    paginator = CustomPaginator(media_files, 20, page_window=2)  # Show 20 images per page and limit to 2 pages before and after the current page
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
     for media in page_obj:
         generate_paths(media)
-        print(media.full_path) # Debug
 
-    tags = TblTags.objects.all()
-    names = TblFaceMatches.objects.values('face_name').distinct()
 
+    tags = TblTags.objects.all().order_by('tag_name')
+    names = TblFaceMatches.objects.exclude(face_name__startswith='unknown_').values('face_name').distinct().order_by('face_name')
+    
     return render(request, "gallery.html", {
         'page_obj': page_obj,
         'tags': tags,
         'names': names,
         'title': "Photos",
         'show_search': True,
-        'show_navbar': True
+        'show_navbar': True,
+        'total_images': total_images,
+        'page_range': paginator.get_page_range(page_obj.number),
+        'user_display': user_display,
+        'unknown_filter': request.GET.get('unknown_filter', 'all'),
     })
 
+@login_required
 def photo_search(request: HttpRequest) -> HttpResponse:
-    user = request.user
+    
+
+    logger = logging.getLogger('django')
+    
+    # Log all query parameters
+    logger.debug(f'photo_search - query parameters: {request.GET}')
+
+
+    unknown_filter = request.GET.get('unknown_filter', 'all')
+
+    # Initialize filters
+    filters = Q(media_type='image')
+
+    # Apply secret filter for non-superusers
+    if not request.user.is_superuser:
+        filters &= Q(is_secret=False)
+
+    # Apply other search filters...
     from_date = request.GET.get('from_date')
     to_date = request.GET.get('to_date')
     tags = request.GET.getlist('tags')
     names = request.GET.getlist('names')
     filename = request.GET.get('filename')
-    media_object_id = request.GET.get('media_object_id')  # Add media_object_id to the search parameters
-
-    filters = Q(media_type='image')
-
-    if not user.is_superuser:
-        filters &= Q(is_secret=False)
-
-    title_parts = []
+    media_object_id = request.GET.get('media_object_id')
 
     if media_object_id:
         filters &= Q(media_object_id=media_object_id)
-        title_parts.append(f"Media ID: {media_object_id}")
-
     if from_date:
         filters &= Q(media_create_date__gte=from_date)
-        title_parts.append(f"From {from_date}")
     if to_date:
         filters &= Q(media_create_date__lte=to_date)
-        title_parts.append(f"To {to_date}")
-
-    media_files = TblMediaObjects.objects.using('media').filter(filters).distinct()
-
     if filename:
         filters &= Q(orig_name__icontains=filename)
-        media_files = media_files.filter(filters)
-        title_parts.append(f"Filename: {filename}")
-
     if tags:
-        tags = [tag for tag in tags if tag]
-        if tags:
-            for tag in tags:
-                media_files = media_files.filter(tbltagstomedia__tag__tag_id=tag)
-            tag_names = TblTags.objects.filter(tag_id__in=tags).values_list('tag_name', flat=True)
-            title_parts.append(f"Tags: {', '.join(tag_names)}")
+        for tag in tags:
+            filters &= Q(tbltagstomedia__tag__tag_id=tag)
     if names:
-        names = [name for name in names if name]
-        if names:
-            for name in names:
-                media_files = media_files.filter(tblfacelocations__tblfacematches__face_name=name)
-            title_parts.append(f"Names: {', '.join(names)}")
+        for name in names:
+            filters &= Q(tblfacelocations__tblfacematches__face_name=name)
 
-    media_files = media_files.order_by('media_object_id')
+    # Apply the unknown_filter logic
+    if unknown_filter == 'no_unknown':
+        # Exclude results where media_object_id starts with 'unknown'
+        filters &= ~Q(new_name__startswith='Unknown')
+    elif unknown_filter == 'only_unknown':
+        # Include only results where media_object_id starts with 'unknown'
+        filters &= Q(new_name__startswith='Unknown')
 
-    paginator = Paginator(media_files, 20)  # Show 20 images per page
+    filters &= Q(is_active=True)
+    # Query the database with filters
+    media_files = TblMediaObjects.objects.using('media').filter(filters).distinct()
+
+    # Sorting and pagination logic
+    gallery_settings = GallerySettings.objects.first()
+    if gallery_settings:
+        order_by = gallery_settings.order_by
+    else:
+        order_by = 'date_desc'
+    
+    allowed_order_by_fields = {
+        'date_asc': Coalesce(F('media_create_date'), Value('9999-12-31')),
+        'date_desc': Coalesce(F('media_create_date'), Value('0001-01-01')).desc(),
+    }
+    order_by_field = allowed_order_by_fields.get(order_by, '-media_create_date')
+    media_files = media_files.order_by(order_by_field)
+
+    total_images = media_files.count()
+
+    paginator = CustomPaginator(media_files, 20, page_window=2)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
@@ -152,20 +208,21 @@ def photo_search(request: HttpRequest) -> HttpResponse:
         generate_paths(media)
         media.has_tags = media.tbltagstomedia_set.exists()
 
-    title = "Photos"
-    if title_parts:
-        title += " - " + " | ".join(title_parts)
+    tags = TblTags.objects.all().order_by('tag_name')
+    names = TblFaceMatches.objects.exclude(face_name__startswith='unknown_').values('face_name').distinct().order_by('face_name')
 
-    tags = TblTags.objects.all()
-    names = TblFaceMatches.objects.exclude(face_name__startswith='unknown_').values('face_name').distinct()
-
+    # Pass the filter and search results to the template
     return render(request, "gallery.html", {
         'page_obj': page_obj,
         'tags': tags,
         'names': names,
-        'title': title,
+        'title': "Photos",
         'show_search': True,
-        'show_navbar': True
+        'show_navbar': True,
+        'total_images': total_images,
+        'page_range': paginator.get_page_range(page_obj.number),
+        'unknown_filter': unknown_filter,
+        'user_display': request.user.get_full_name() if request.user.get_full_name() else request.user.username
     })
 
 
@@ -562,27 +619,33 @@ def delete_tag(request, tag_id):
     tag.delete()
     return JsonResponse({'status': 'success'})
 
+
 def delete_image(request, media_id):
     if request.method == 'POST':
         try:
-            # Retrieve the media object
-            media_object = get_object_or_404(TblMediaObjects, pk=media_id)
+            with transaction.atomic():
+                # Retrieve the media object
+                media_object = get_object_or_404(TblMediaObjects, pk=media_id)
 
-            # Mark the image as no longer active
-            media_object.is_active = False
-            media_object.save()
+                # Mark the image as no longer active
+                media_object.is_active = False
+                media_object.save()
 
-            # Move the image to the deleted folder
-            image_path = os.path.join(settings.IMAGE_PATH, media_object.new_name)
-            deleted_path = os.path.join(settings.DELETED_PATH, media_object.new_name)
+                # Paths
+                image_path = os.path.join(settings.IMAGE_PATH, media_object.new_name)
+                deleted_path = os.path.join(settings.DELETED_PATH, media_object.new_name)
+                thumbnail_path = os.path.join(settings.THUMBNAIL_PATH, media_object.new_name)
 
-            if os.path.exists(image_path):
-                shutil.move(image_path, deleted_path)
+                # Ensure the deleted folder exists
+                os.makedirs(os.path.dirname(deleted_path), exist_ok=True)
 
-            # Delete the thumbnail
-            thumbnail_path = os.path.join(settings.THUMBNAIL_PATH, media_object.new_name)
-            if os.path.exists(thumbnail_path):
-                os.remove(thumbnail_path)
+                # Move the image to the deleted folder
+                if os.path.exists(image_path):
+                    shutil.move(image_path, deleted_path)
+
+                # Delete the thumbnail
+                if os.path.exists(thumbnail_path):
+                    os.remove(thumbnail_path)
 
             return JsonResponse({'success': True, 'message': 'Image deleted successfully'})
 
@@ -590,6 +653,7 @@ def delete_image(request, media_id):
             return JsonResponse({'success': False, 'error': str(e)})
 
     return JsonResponse({'success': False, 'error': 'Invalid request method'})
+
 
 def download_image(request, media_id):
     media_object = get_object_or_404(TblMediaObjects, media_object_id=media_id)
@@ -627,4 +691,409 @@ def get_location_data(request, media_id):
     return JsonResponse({
         'latitude': media.latitude,
         'longitude': media.longitude
+    })
+
+@csrf_exempt
+def update_is_secret(request, media_id):
+    if request.method == 'POST':
+        media_object = get_object_or_404(TblMediaObjects, media_object_id=media_id)
+        data = json.loads(request.body)
+        media_object.is_secret = data['is_secret']
+        media_object.save()
+        return JsonResponse({'success': True})
+    return JsonResponse({'success': False}, status=400)
+
+@require_POST
+def update_date(request):
+    
+    logger.debug("Request method:", request.method)
+    logger.debug("Request content type:", request.content_type)
+    logger.debug("Request body:", request.body)  # Log the raw request body
+    
+    try:
+            data = json.loads(request.body)
+            print("Received data:", data)  # Debugging log
+
+            media_id = data.get('media_id')
+            new_date = data.get('media_create_date')
+
+            if not media_id or not new_date:
+                return JsonResponse({'success': False, 'error': 'Invalid data'}, status=400)
+            
+            # Mock response to isolate the issue
+            return JsonResponse({'success': True, 'media_id': media_id, 'new_date': new_date})
+            
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'error': 'Invalid JSON'}, status=400)
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': 'Unexpected error: ' + str(e)}, status=500)
+
+def update_media_date_and_filename(media_object_id, new_date):
+    media_object = TblMediaObjects.objects.get(media_object_id=media_object_id)
+    
+    # Update media_create_date
+    media_object.media_create_date = new_date
+    media_object.save()
+    
+    # Construct new filename
+    new_date_str = new_date.strftime('%Y-%m-%d')
+    original_file_path = media_object.file_path
+    original_thumbnail_path = media_object.thumbnail_path
+    file_extension = os.path.splitext(original_file_path)[1]
+    new_filename = f"{new_date_str}-{media_object_id}{file_extension}"
+    
+    # Set the new file name in the database
+    media_object.file_name = new_filename
+    media_object.save()
+    
+    # Copy the image file to the new name
+    new_file_path = os.path.join(settings.IMAGE_PATH, new_filename)
+    shutil.copy(original_file_path, new_file_path)
+    
+    # Move the original file to the deleted folder
+    deleted_folder = settings.DELETED_PATH
+    if not os.path.exists(deleted_folder):
+        os.makedirs(deleted_folder)
+    shutil.move(original_file_path, os.path.join(deleted_folder, os.path.basename(original_file_path)))
+    
+    # Rename the thumbnail file
+    new_thumbnail_path = os.path.join(settings.THUMBNAIL_PATH, new_filename)
+    os.rename(original_thumbnail_path, new_thumbnail_path)
+    
+    # Update media_object with new file paths
+    media_object.file_path = new_file_path
+    media_object.thumbnail_path = new_thumbnail_path
+    media_object.save()
+
+    return media_object
+
+
+def handle_media_update(request, media_object_id):
+    new_date = request.POST.get('new_date')  # Retrieve the date from form submission
+    if new_date:
+        try:
+            new_date = datetime.strptime(new_date, '%Y-%m-%d')  # Adjust format as necessary
+            updated_media = update_media_date_and_filename(media_object_id, new_date)
+        except ValueError:
+            return JsonResponse({'success': False, 'error': 'Invalid date format'}, status=400)
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)}, status=500)
+        
+        return JsonResponse({'success': True, 'media': updated_media})
+    return JsonResponse({'success': False, 'error': 'No date provided'}, status=400)
+
+
+def photo_stream(request):
+    media_files = TblMediaObjects.objects.using('media').filter(
+        media_type='image',
+        is_active=True
+    ).order_by('media_object_id')  # Ensure consistent ordering by ID
+
+    paginator = Paginator(media_files, 100)
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
+
+    # Calculate starting count for the current page
+    start_count = (int(page_number) - 1) * 100
+
+    available_tags = TblTags.objects.all().order_by('tag_name')
+
+    for media in page_obj:
+        generate_paths(media)
+        media.assigned_tags = TblTagsToMedia.objects.filter(media_object=media).values_list('tag_id', flat=True)
+
+
+
+    return render(request, "photo_stream.html", {
+        'page_obj': page_obj,
+        'title': "Photo Stream",
+        'total_images': paginator.count,
+        'start_count': start_count,
+        'available_tags': available_tags,
+    })
+
+
+
+def update_secret_status(request, media_object_id):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        is_secret = data.get('is_secret', False)
+        
+        try:
+            photo = TblMediaObjects.objects.get(media_object_id=media_object_id)
+            photo.is_secret = is_secret
+            photo.save()
+            return JsonResponse({'success': True})
+        except TblMediaObjects.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Photo not found'})
+    else:
+        return JsonResponse({'success': False, 'error': 'Invalid request'})
+    
+
+@require_POST
+def update_tags(request, media_id):
+    data = json.loads(request.body)
+    selected_tags = data.get('tags', [])
+
+    # Clear existing tags
+    TblTagsToMedia.objects.filter(media_object_id=media_id).delete()
+
+    # Add the new tags
+    for tag_id in selected_tags:
+        TblTagsToMedia.objects.create(media_object_id=media_id, tag_id=tag_id)
+
+    # Optionally, return the updated list of tags for this media object
+    updated_tags = TblTagsToMedia.objects.filter(media_object_id=media_id)
+    updated_tag_ids = list(updated_tags.values_list('tag_id', flat=True))  # This is JSON serializable
+
+    return JsonResponse({'success': True, 'updated_tags': updated_tag_ids})
+
+def get_tags(request, media_id):
+    try:
+        media=TblMediaObjects.objects.get(media_object_id=media_id)
+        assigned_tags = TblTagsToMedia.objects.filter(media_object=media)
+        assigned_tag_ids = list(assigned_tags.values_list('tag_id', flat=True))
+        available_tags = TblTags.objects.all().values('tag_id', 'tag_name')
+
+        available_tags = list(available_tags)
+
+        return JsonResponse({
+            'success': True,
+            'assigned_tags':list(assigned_tag_ids),
+            'available_tags': list(available_tags)
+        })
+    except TblMediaObjects.DoesNotExist:
+        return JsonResponse({'success':False, 'error': 'Media object not found.'})
+    
+
+def get_image_size(image_path):
+    """Get the size of the image in bytes."""
+    return os.path.getsize(image_path)
+
+def check_exif_data(image_path):
+    """Check if the image has EXIF data."""
+    try:
+        image = Image.open(image_path)
+        exif_data = image._getexif()
+        return exif_data is not None
+    except Exception as e:
+        return False
+    
+def duplicate_images_view(request, group_number=0):
+    duplicates_file_path = os.path.join(settings.IMAGE_PATH, 'results.json')
+    try:
+        with open(duplicates_file_path, 'r') as file:
+            duplicates_data = json.load(file)
+    except Exception as e:
+        logger.error(f"Error reading duplicates file: {str(e)}")
+        return HttpResponse(status=500)
+
+    # Convert keys to a list so we can use the group_number as an index
+    duplicate_keys = list(duplicates_data.keys())
+    total_groups = len(duplicate_keys)
+
+    # Ensure the group_number is within a valid range
+    group_number = int(group_number)
+    group_number = max(0, min(group_number, total_groups - 1))
+    
+    # Get the current group using the group_number
+    current_key = duplicate_keys[group_number]
+    group = duplicates_data[current_key]
+
+    images_info = []
+    # Add the original image
+    original_media_object = get_object_or_404(TblMediaObjects, new_name=os.path.basename(current_key))
+    images_info.append({
+        'id': original_media_object.media_object_id,
+        'name': original_media_object.new_name,
+        'size': get_image_size(current_key),
+        'exif_present': check_exif_data(current_key),
+    })
+    
+    # Add the duplicate images
+    for duplicate in group:
+        duplicate_path = duplicate[0]
+        duplicate_media_object = get_object_or_404(TblMediaObjects, new_name=os.path.basename(duplicate_path))
+        
+        images_info.append({
+            'id': duplicate_media_object.media_object_id,
+            'name': duplicate_media_object.new_name,
+            'size': get_image_size(duplicate_path),
+            'exif_present': check_exif_data(duplicate_path),
+        })
+
+    context = {
+        'duplicate_groups': [images_info],  # Wrap in a list for the template
+        'total_groups': total_groups,
+        'group_number': group_number + 1,  # Human-readable group number (1-indexed)
+        'show_navbar':False,
+        'IMAGE_PATH': settings.IMAGE_PATH,
+    }
+
+    logger.debug(images_info)
+    logger.debug(total_groups)
+
+    return render(request, 'duplicate_search.html', context)
+
+def get_duplicate_group(request, group_number):
+    duplicates_file_path = os.path.join(settings.IMAGE_PATH, 'results.json')
+    try:
+        with open(duplicates_file_path, 'r') as file:
+            duplicates_data = json.load(file)
+    except Exception as e:
+        logger.error(f"Error reading duplicates file: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=500)
+
+    duplicate_keys = list(duplicates_data.keys())
+    total_groups = len(duplicate_keys)
+
+    group_number = int(group_number)
+    if group_number < 0 or group_number >= total_groups:
+        return JsonResponse({'error': 'Group number out of range'}, status=400)
+
+    current_key = duplicate_keys[group_number]
+    group = duplicates_data[current_key]
+
+    images_info = []
+    original_media_object = get_object_or_404(TblMediaObjects, new_name=os.path.basename(current_key))
+    images_info.append({
+        'id': original_media_object.media_object_id,
+        'name': original_media_object.new_name,
+        'size': get_image_size(current_key),
+        'exif_present': check_exif_data(current_key),
+    })
+
+    for duplicate in group:
+        duplicate_path = duplicate[0]
+        duplicate_media_object = get_object_or_404(TblMediaObjects, new_name=os.path.basename(duplicate_path))
+        images_info.append({
+            'id': duplicate_media_object.media_object_id,
+            'name': duplicate_media_object.new_name,
+            'size': get_image_size(duplicate_path),
+            'exif_present': check_exif_data(duplicate_path),
+        })
+
+    return JsonResponse({
+        'group': images_info,
+        'group_number': group_number + 1,  # Human-readable group number (1-indexed)
+        'total_groups': total_groups,
+    })
+
+def photo_tag_stream(request):
+    media_files = TblMediaObjects.objects.using('media').filter(
+        media_type='image',
+        is_active=True
+    ).order_by('media_object_id')  # Ensure consistent ordering by ID
+
+    paginator = Paginator(media_files, 100)
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
+
+    # Calculate starting count for the current page
+    start_count = (int(page_number) - 1) * 100
+
+    available_tags = TblTags.objects.all().order_by('tag_name')
+
+    for media in page_obj:
+        generate_paths(media)
+        media.thumbnail_path = os.path.join(settings.THUMBNAIL_PATH, media.new_name)  # Generate the thumbnail path
+        media.assigned_tags = TblTagsToMedia.objects.filter(media_object=media).values_list('tag_id', flat=True)
+
+    return render(request, "photo_tag_stream.html", {
+        'page_obj': page_obj,
+        'title': "Photo Tag Stream",
+        'total_images': paginator.count,
+        'start_count': start_count,
+        'available_tags': available_tags,
+    })
+
+def copy_image(request, media_id):
+    try:
+        logger.debug(f"Attempting to copy image with ID: {media_id}")
+        
+        media = TblMediaObjects.objects.using('media').get(media_object_id=media_id)
+        logger.debug(f"Media object retrieved: {media}")
+
+        source_path = os.path.join(settings.IMAGE_PATH, media.new_name)
+        destination_dir = os.path.join('mnt/MOM/', 'natasha_wedding')
+        destination_path = os.path.join(destination_dir, media.new_name)
+        
+        logger.debug(f"Source path: {source_path}")
+        logger.debug(f"Destination directory: {destination_dir}")
+        logger.debug(f"Destination path: {destination_path}")
+
+        # Ensure the destination directory exists
+        if not os.path.exists(destination_dir):
+            logger.debug(f"Creating destination directory: {destination_dir}")
+            os.makedirs(destination_dir, exist_ok=True)
+        else:
+            logger.debug(f"Destination directory already exists: {destination_dir}")
+
+        # Attempt to copy the file
+        logger.debug(f"Copying file from {source_path} to {destination_path}")
+        shutil.copy2(source_path, destination_path)
+        logger.debug("File copied successfully")
+
+        return JsonResponse({'success': True, 'message': 'Image copied successfully!'})
+
+    except TblMediaObjects.DoesNotExist:
+        logger.error(f"Media object with ID {media_id} does not exist")
+        return JsonResponse({'success': False, 'error': 'Image not found.'}, status=404)
+    except PermissionError as e:
+        logger.error(f"Permission error while copying image: {e}")
+        return JsonResponse({'success': False, 'error': 'Permission denied.'}, status=403)
+    except Exception as e:
+        logger.error(f"Unexpected error while copying image: {e}")
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+def photo_stream_simple(request):
+    media_files = TblMediaObjects.objects.using('media').filter(
+        media_type='image',
+        is_active=True,
+        media_object_id__gte=31000
+    ).order_by('media_object_id')  # Ensure consistent ordering by ID
+
+    paginator = Paginator(media_files, 100)
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
+
+    # Calculate starting count for the current page
+    start_count = (int(page_number) - 1) * 100
+
+    for media in page_obj:
+        generate_paths(media)  # Ensure the paths are generated for each media
+        media.thumbnail_path = os.path.join(settings.THUMBNAIL_PATH, media.new_name)  # Generate the thumbnail path
+
+    return render(request, "photo_stream_simple.html", {
+        'page_obj': page_obj,
+        'title': "Photo Stream",
+        'total_images': paginator.count,
+        'start_count': start_count,
+    })
+
+def video_stream_simple(request):
+    # Filter for video media types (assuming 'media_type' distinguishes between images and videos)
+    media_files = TblMediaObjects.objects.using('media').filter(
+        media_type='movie',  
+        is_active=True,
+        media_object_id__gte=31000
+    ).order_by('media_object_id')  # Ensure consistent ordering by ID
+
+    paginator = Paginator(media_files, 50)  # Change to 50 items per page for videos if needed
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
+
+    # Calculate starting count for the current page
+    start_count = (int(page_number) - 1) * 50
+
+    for media in page_obj:
+
+        media.full_path = f"/videos/{media.new_name}"  # URL path for videos
+
+
+    return render(request, "video_stream_simple.html", {
+        'page_obj': page_obj,
+        'title': "Video Stream",
+        'total_videos': paginator.count,
+        'start_count': start_count,
     })

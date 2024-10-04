@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Stream</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- jQuery (Required by Fancybox) -->
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+
+    <style>
+        html, body {
+            width: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container-fluid {
+            width: 100% !important;
+            max-width: 100% !important;
+            padding: 10px !important;
+            margin: 0 !important;
+        }
+
+        .video-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%; /* Full screen width */
+            padding: 0;
+        }
+
+        .video-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            width: 100%; /* Use full screen width */
+            max-width: 100%; /* Ensure the items are responsive */
+            justify-content: flex-start;
+            padding: 10px;
+        }
+
+        .video-item video {
+            flex: 0 0 300px;
+            margin-right: 20px; /* Minimal margin between video and details */
+        }
+
+        .video-details {
+            flex: 1;
+            text-align: left;
+            max-width: 400px; /* Limit the details width */
+        }
+
+        .video-details p {
+            margin: 0 0 5px;
+        }
+
+        .copy-btn {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container-fluid"> <!-- Use full width -->
+        <div class="video-container">
+            {% for media in page_obj %}
+                <div class="video-item">
+                    <!-- Video with controls -->
+                    <video controls>
+                        <source src="{{ media.full_path }}" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                    <div class="video-details">
+                        <!-- Video Name with Size -->
+                        <p><strong>{{ media.new_name }}</strong> ({{ media.size_human_readable }})</p>
+
+                        <!-- Copy Button -->
+                        <button class="btn btn-primary btn-sm copy-btn" data-media-id="{{ media.media_object_id }}">Copy</button>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            attachCopyButtonListeners();
+
+            let currentPage = 1;
+            let isLoading = false;
+
+            // Debounced scroll event listener
+            window.addEventListener('scroll', debounce(() => {
+                if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 500 && !isLoading) {
+                    loadMoreVideos();
+                }
+            }, 200)); // 200ms debounce
+
+            // Function to load more videos
+            function loadMoreVideos() {
+                if (isLoading) return;
+
+                isLoading = true;
+                currentPage += 1;
+
+                fetch(`?page=${currentPage}`)
+                    .then(response => response.text())
+                    .then(data => {
+                        const parser = new DOMParser();
+                        const newDocument = parser.parseFromString(data, 'text/html');
+                        const newVideos = newDocument.querySelectorAll('.video-item');
+
+                        if (newVideos.length > 0) {
+                            const videoContainer = document.querySelector('.video-container');
+                            const fragment = document.createDocumentFragment();
+
+                            newVideos.forEach(video => {
+                                fragment.appendChild(video);
+                            });
+
+                            videoContainer.appendChild(fragment);  // Append all new items in one go
+                            attachCopyButtonListeners(); // Re-attach listeners to new elements
+                        } else {
+                            console.warn('No more videos to load.');
+                        }
+
+                        isLoading = false;
+                    })
+                    .catch(error => {
+                        console.error('Error loading more videos:', error);
+                        isLoading = false;
+                    });
+            }
+
+            function attachCopyButtonListeners() {
+                document.querySelectorAll('.copy-btn').forEach(button => {
+                    button.addEventListener('click', function() {
+                        const mediaId = this.dataset.mediaId;
+
+                        fetch(`/media/copy_video/${mediaId}/`, {
+                            method: 'GET',
+                            headers: {
+                                'X-CSRFToken': '{{ csrf_token }}',  // Include CSRF token if required for GET requests in your setup
+                            }
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                console.log('Video copied successfully.');
+                            } else {
+                                alert('Error copying video: ' + data.error);
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            alert('An error occurred while copying the video.');
+                        });
+                    });
+                });
+            }
+
+            // Debounce function to limit the rate at which a function can fire
+            function debounce(func, wait) {
+                let timeout;
+                return function(...args) {
+                    const later = () => {
+                        clearTimeout(timeout);
+                        func(...args);
+                    };
+                    clearTimeout(timeout);
+                    timeout = setTimeout(later, wait);
+                };
+            }
+        });
+    </script>
+
+</body>
+</html>
